@@ -1,4 +1,4 @@
-Base.@kwdef struct ZGroup <: AbstractDict{String, Union{ZArray,ZGroup}}
+Base.@kwdef struct ZGroup
     children::SortedDict{String,Union{ZArray,ZGroup}} = SortedDict{String,Union{ZArray,ZGroup}}()
     attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()
 end
