@@ -1,4 +1,4 @@
-Base.@kwdef struct ZGroup
+Base.@kwdef struct ZGroup <: AbstractDict{String, Union{ZArray,ZGroup}}
     children::SortedDict{String,Union{ZArray,ZGroup}} = SortedDict{String,Union{ZArray,ZGroup}}()
     attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()
 end
@@ -20,6 +20,11 @@ function _normalize_path(pathstr::AbstractString)::Vector{SubString{String}}
     @argcheck !any(==(".."), path)
     path
 end
+
+# AbstractDict interface
+Base.length(d::ZGroup) = length(d.children)
+
+Base.iterate(d::ZGroup, args...) = iterate(d.children, args...)
 
 function Base.getindex(d::ZGroup, pathstr::AbstractString)
     path = _normalize_path(pathstr)
