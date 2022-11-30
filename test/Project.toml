@@ -1,0 +1,8 @@
+[deps]
+CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+StorageTrees = "d423b6e5-1c84-4ae2-8d2d-b903aee15ac7"
+StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

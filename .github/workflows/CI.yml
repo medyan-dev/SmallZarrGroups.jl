@@ -24,6 +24,8 @@ jobs:
           # - macos-latest
         arch:
           - x64
+    env:
+      JULIA_CONDAPKG_VERBOSITY: 2
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -40,7 +42,23 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
+      - name: Develop packages
+        run: |
+          julia --project=test -e '
+            using Pkg
+            Pkg.develop([PackageSpec(path=pwd())])
+            Pkg.instantiate()'
       - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
         with:
-          coverage: false
+          project: test
+      - name: Print package status
+        run: |
+          julia --project=test -e '
+            using InteractiveUtils
+            versioninfo()
+            using Pkg
+            Pkg.status(;mode=Pkg.PKGMODE_MANIFEST)'
+      - name: Run tests
+        run: |
+          cd test && 
+          julia --project --color=yes --depwarn=yes --warn-overwrite=yes --warn-scope=yes --check-bounds=yes  runtests.jl 

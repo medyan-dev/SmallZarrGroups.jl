@@ -3,5 +3,7 @@
 
 #VS Code
 /.vscode/
+
 /test/Manifest.toml
 /Manifest.toml
+.CondaPkg
