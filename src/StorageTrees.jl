@@ -11,8 +11,8 @@ using AbstractTrees
 using JSON3
 
 export ZGroup
-export ZArray
 export attrs
+export children
 
 include("ZArray.jl")
 include("ZGroup.jl")

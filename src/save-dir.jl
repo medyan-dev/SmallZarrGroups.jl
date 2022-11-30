@@ -8,7 +8,7 @@ function __init__()
 end
 
 """
-Note this will delete pre existing data at path
+Note this will delete pre existing data at dirpath
 """
 function save_dir(dirpath::AbstractString, z::ZGroup)
     # TODO add something to prevent loops

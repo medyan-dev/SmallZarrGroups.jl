@@ -137,46 +137,6 @@ end
     end
 end
 
-@testset "saving and loading many arrays" begin
-    attrs = StorageTrees.attrs
-    g = StorageTrees.ZGroup()
-    data1 = rand(10,20)
-    g["testarray1"] = StorageTrees.ZArray(data1;
-        attrs = OrderedDict([
-            "foo" => "bar1",
-        ])
-    )
-    data2 = rand(Int,20)
-    g["testarray2"] = StorageTrees.ZArray(data2;
-        attrs = OrderedDict([
-            "foo" => "bar2",
-        ])
-    )
-    data3 = rand(UInt8,20)
-    g["testgroup1"] = StorageTrees.ZGroup()
-    g["testgroup1"]["testarray1"] = StorageTrees.ZArray(data3;
-        attrs = OrderedDict([
-            "foo" => "bar3",
-        ])
-    )
-    mktempdir() do path
-        StorageTrees.save_dir(path,g)
-        gload = StorageTrees.load_dir(path)
-        @test StorageTrees.getarray(gload["testarray1"]) == data1
-        @test attrs(gload["testarray1"]) == OrderedDict([
-            "foo" => "bar1",
-        ])
-        @test StorageTrees.getarray(gload["testarray2"]) == data2
-        @test attrs(gload["testarray2"]) == OrderedDict([
-            "foo" => "bar2",
-        ])
-        @test StorageTrees.getarray(gload["testgroup1/testarray1"]) == data3
-        @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
-            "foo" => "bar3",
-        ])
-    end
-end
-
 
 @testset "loading/saving nested StructArray" begin
     @testset "StructArray with nested empty tuple and nothing" begin

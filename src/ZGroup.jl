@@ -16,15 +16,11 @@ AbstractTrees.childtype(::Type{ZGroup}) = Union{ZArray,ZGroup}
 
 function _normalize_path(pathstr::AbstractString)::Vector{SubString{String}}
     path = split(replace(pathstr, '\\'=>'/'), '/'; keepempty=false)
+    @argcheck !isempty(path)
     @argcheck !any(==("."), path)
     @argcheck !any(==(".."), path)
     path
 end
-
-# AbstractDict interface
-Base.length(d::ZGroup) = length(d.children)
-
-Base.iterate(d::ZGroup, args...) = iterate(d.children, args...)
 
 function Base.getindex(d::ZGroup, pathstr::AbstractString)
     path = _normalize_path(pathstr)
@@ -88,9 +84,12 @@ Base.pairs(d::ZGroup) = pairs(children(d))
 
 
 function Base.delete!(d::ZGroup, pathstr::AbstractString)
-    path = _normalize_path(pathstr)
-    lastgroup::ZGroup = foldl((x,y)->getindex(x.children, y), path[begin:end-1]; init=d)
-    delete!(lastgroup.children, path[end])
+    if haskey(d, pathstr)
+        path = _normalize_path(pathstr)
+        lastgroup::ZGroup = foldl((x,y)->getindex(x.children, y), path[begin:end-1]; init=d)
+        delete!(lastgroup.children, path[end])
+    end
+    d
 end
 
 
