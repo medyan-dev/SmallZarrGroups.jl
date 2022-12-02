@@ -15,7 +15,7 @@ If you just want to serialize arbitrary Julia data consider using https://github
 ## Goals
 
 1. `ZGroup` represents a tree with arrays as leaves.
-1. `ZGroup` leaf arrays are uncompressed but store metadata about how they should be losslessly compressed when saved to disk.
+1. `ZGroup` leaf arrays are uncompressed but store metadata about how they should be compressed when saved to disk.
 1. `ZGroup` can have JSON3 serializable attributes attached to any node or leaf.
 1. Data can be quickly accessed and modified in `ZGroup`.
 1. No file open close semantics. Use the Julia garbage collector to clean memory up.
