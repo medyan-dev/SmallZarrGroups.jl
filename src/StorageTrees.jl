@@ -18,7 +18,7 @@ include("ZArray.jl")
 include("ZGroup.jl")
 
 
-
+include("zarr-type-parsing.jl")
 include("save-dir.jl")
 include("extra.jl")
 
