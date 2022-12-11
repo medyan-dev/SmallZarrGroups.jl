@@ -98,22 +98,41 @@ function parse_zarr_type(typestr::String)::ParsedType
         @argcheck numthings in 2:8
         @argcheck count_ones(numthings) == 1
         @argcheck byteorder in "<>"
-        (Float16, Float32, Float64)[trailing_zeros(numthings)]
+        in_native_order = (byteorder == NATIVE_ORDER)
+        tz = trailing_zeros(numthings)
+        return ParsedType(;
+            julia_type = (Float16, Float32, Float64)[tz],
+            julia_size = numthings,
+            byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
+            alignment = ALIGNMENT_LOOKUP[tz+1],
+            just_copy = in_native_order,
+        )
     elseif typechar == 'c'
         @argcheck numthings in 4:16
         @argcheck count_ones(numthings) == 1
         @argcheck byteorder in "<>"
-        (ComplexF16, ComplexF32, ComplexF64)[trailing_zeros(numthings)-1]
-    elseif typechar == 'm'
+        in_native_order = (byteorder == NATIVE_ORDER)
+        tz = trailing_zeros(numthings)
+        return ParsedType(;
+            julia_type = (ComplexF16, ComplexF32, ComplexF64)[tz - 1],
+            julia_size = numthings,
+            byteorder = in_native_order ? (1:numthings) : [numthings÷2:-1:1; numthings:-1:numthings÷2+1;],
+            alignment = ALIGNMENT_LOOKUP[tz],
+            just_copy = in_native_order,
+        )
+    elseif (typechar == 'm') | (typechar == 'M')
         @argcheck byteorder in "<>"
         @argcheck numthings == 8
-        @warn "timedelta64 not supported, converting to Int64"
-        Int64
-    elseif typechar == 'M'
-        @argcheck byteorder in "<>"
-        @argcheck numthings == 8
-        @warn "datatime64 not supported, converting to Int64"
-        Int64
+        @warn "timedelta64 and datatime64 not supported, converting to Int64"
+        in_native_order = (byteorder == NATIVE_ORDER)
+        tz = trailing_zeros(numthings)
+        return ParsedType(;
+            julia_type = Int64,
+            julia_size = 8,
+            byteorder = in_native_order ? (1:8) : (8:-1:1),
+            alignment = ALIGNMENT_LOOKUP[4],
+            just_copy = in_native_order,
+        )
     elseif typechar == 'S'
         return ParsedType(;
             julia_type = StaticString{numthings},
@@ -123,9 +142,9 @@ function parse_zarr_type(typestr::String)::ParsedType
             just_copy = true,
         )
     elseif typechar == 'U'
-        @argcheck byteorder in "<>"
-        in_native_order = (byteorder == NATIVE_ORDER)
-        byteorder = if (byteorder == NATIVE_ORDER)
+        @argcheck (byteorder in "<>") || iszero(numthings)
+        in_native_order = (byteorder == NATIVE_ORDER) || iszero(numthings)
+        _byteorder = if in_native_order
             collect(1:numthings*4)
         else
             collect(Iterators.flatten((4+4i,3+4i,2+4i,1+4i) for i in 0:2))
@@ -133,8 +152,8 @@ function parse_zarr_type(typestr::String)::ParsedType
         return ParsedType(;
             julia_type = NTuple{numthings, Char},
             julia_size = numthings*4,
-            byteorder,
-            alignment = 2,
+            byteorder = _byteorder,
+            alignment = iszero(numthings) ? 0 : 2,
             just_copy = in_native_order,
         )
     elseif typechar == 'V'
