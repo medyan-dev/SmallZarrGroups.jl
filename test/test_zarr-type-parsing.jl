@@ -21,7 +21,7 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         )
         tests = [
             "S0"=>StaticString{0},
-            "U0"=>NTuple{0,Char},
+            "U0"=>SVector{0,Char},
             "V0"=>NTuple{0,UInt8},
         ]
         for pair in tests
@@ -115,16 +115,18 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         tests = [
             "M8[ns]",
             "m8[ns]",
+            "M8[D]",
+            "m8[D]",
         ]
         for teststr in tests
-            @test StorageTrees.parse_zarr_type(NATIVE_ORDER*teststr) == StorageTrees.ParsedType(
+            @test StorageTrees.parse_zarr_type(NATIVE_ORDER*teststr; silence_warnings=true) == StorageTrees.ParsedType(
                 julia_type = Int64,
                 julia_size = 8,
                 byteorder = 1:8,
                 alignment = 3,
                 just_copy = true,
             )
-            @test StorageTrees.parse_zarr_type(OTHER_ORDER*teststr) == StorageTrees.ParsedType(
+            @test StorageTrees.parse_zarr_type(OTHER_ORDER*teststr; silence_warnings=true) == StorageTrees.ParsedType(
                 julia_type = Int64,
                 julia_size = 8,
                 byteorder = 8:-1:1,
@@ -132,5 +134,81 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
                 just_copy = false,
             )
         end
+    end
+    @testset "static bytes types" begin
+        staticstringtype(t,n) = StorageTrees.ParsedType(
+            julia_type = t{n},
+            julia_size = n,
+            byteorder = 1:n,
+            alignment = 0,
+            just_copy = true,
+        )
+        for (typestr, t) in ("S"=>StaticString, "V"=>(NTuple{N,UInt8} where N))
+            for n in 0:1050
+                for order in "<>|"
+                    @test StorageTrees.parse_zarr_type(order*typestr*string(n)) == staticstringtype(t,n)
+                end
+            end
+        end
+        @test StorageTrees.parse_zarr_type("|S100000") == staticstringtype(StaticString,100000)
+        @test StorageTrees.parse_zarr_type("|V100000") == staticstringtype((NTuple{N,UInt8} where N),100000)
+    end
+    @testset "static 32bit char vector" begin
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U1") == StorageTrees.ParsedType(
+            julia_type = SVector{1,Char},
+            julia_size = 4,
+            byteorder = 1:4,
+            alignment = 2,
+            just_copy = true,
+        )
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U2") == StorageTrees.ParsedType(
+            julia_type = SVector{2,Char},
+            julia_size = 8,
+            byteorder = 1:8,
+            alignment = 2,
+            just_copy = true,
+        )
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3") == StorageTrees.ParsedType(
+            julia_type = SVector{3,Char},
+            julia_size = 12,
+            byteorder = 1:12,
+            alignment = 2,
+            just_copy = true,
+        )
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3000") == StorageTrees.ParsedType(
+            julia_type = SVector{3000,Char},
+            julia_size = 12000,
+            byteorder = 1:12000,
+            alignment = 2,
+            just_copy = true,
+        )
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U1") == StorageTrees.ParsedType(
+            julia_type = SVector{1,Char},
+            julia_size = 4,
+            byteorder = 4:-1:1,
+            alignment = 2,
+            just_copy = false,
+        )
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U2") == StorageTrees.ParsedType(
+            julia_type = SVector{2,Char},
+            julia_size = 8,
+            byteorder = [4,3,2,1,8,7,6,5],
+            alignment = 2,
+            just_copy = false,
+        )
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U3") == StorageTrees.ParsedType(
+            julia_type = SVector{3,Char},
+            julia_size = 12,
+            byteorder = [4,3,2,1,8,7,6,5,12,11,10,9],
+            alignment = 2,
+            just_copy = false,
+        )
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U5") == StorageTrees.ParsedType(
+            julia_type = SVector{5,Char},
+            julia_size = 20,
+            byteorder = [4,3,2,1,8,7,6,5,12,11,10,9,16,15,14,13,20,19,18,17],
+            alignment = 2,
+            just_copy = false,
+        )
     end
 end

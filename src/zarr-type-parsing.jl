@@ -46,7 +46,7 @@ end
 """
 Parse a basic zarr typestr.
 """
-function parse_zarr_type(typestr::String)::ParsedType
+function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
     byteorder = typestr[1]
     typechar = typestr[2]
     # note need to strip non digits because of datetime units
@@ -123,7 +123,7 @@ function parse_zarr_type(typestr::String)::ParsedType
     elseif (typechar == 'm') | (typechar == 'M')
         @argcheck byteorder in "<>"
         @argcheck numthings == 8
-        @warn "timedelta64 and datatime64 not supported, converting to Int64"
+        silence_warnings || @warn "timedelta64 and datatime64 not supported, converting to Int64"
         in_native_order = (byteorder == NATIVE_ORDER)
         tz = trailing_zeros(numthings)
         return ParsedType(;
@@ -147,10 +147,10 @@ function parse_zarr_type(typestr::String)::ParsedType
         _byteorder = if in_native_order
             collect(1:numthings*4)
         else
-            collect(Iterators.flatten((4+4i,3+4i,2+4i,1+4i) for i in 0:2))
+            collect(Iterators.flatten((4+4i,3+4i,2+4i,1+4i) for i in 0:numthings-1))
         end
         return ParsedType(;
-            julia_type = NTuple{numthings, Char},
+            julia_type = SVector{numthings, Char},
             julia_size = numthings*4,
             byteorder = _byteorder,
             alignment = iszero(numthings) ? 0 : 2,
