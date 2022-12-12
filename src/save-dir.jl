@@ -95,7 +95,7 @@ function load_zgroup(dirpath, subpath::String)::ZGroup
         child_subpath = String(subpath*k*"/")
         out[k] = load_zgroup(dirpath, child_subpath)
     end
-    @show subpath
+    # @show subpath
     subarray_keys::Vector{String} = sort(string.(collect(zg.array_keys())))
     for k in subarray_keys
         child_subpath = String(subpath*k*"/")
@@ -119,7 +119,7 @@ function load_zarray(dirpath, subpath::String)::ZArray
             rethrow()
         end
     end
-    if !(eltype(data) isa ZDataTypes)
+    if !(eltype(data) <: ZDataTypes)
         data = collect(vec(reinterpret(UInt8,data)))
         chunks = 0
     end
