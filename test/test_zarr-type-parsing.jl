@@ -212,3 +212,28 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         )
     end
 end
+
+
+@testset "structured type parsing with no shape" begin
+    read_parse(s) = StorageTrees.parse_zarr_type(JSON3.read(s))
+    @testset "zero fields" begin
+        @test read_parse("[]") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(), Tuple{}},
+            julia_size = 0,
+            zarr_size = 0,
+            byteorder = [],
+            alignment = 0,
+            just_copy = true,
+        )
+    end
+    @testset "one field" begin
+        @test read_parse("""["r", "|u1"]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{r::UInt8},
+            julia_size = 1,
+            zarr_size = 1,
+            byteorder = [1],
+            alignment = 0,
+            just_copy = true,
+        )
+    end
+end
