@@ -255,6 +255,13 @@ end
             byteorder = 1:4,
             alignment = 1,
         )
+        @test read_parse("""[["r", "|u1"], ["g", "$(NATIVE_ORDER)u4"], ["b", "$(OTHER_ORDER)u2"]]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{r::UInt8,g::UInt32,b::UInt16},
+            julia_size = 12,
+            zarr_size = 7,
+            byteorder = [1,5,6,7,8,10,9],
+            alignment = 2,
+        )
     end
     @testset "nested structs" begin
         @test read_parse("""[["foo", "$(NATIVE_ORDER)f4"], ["bar", [["baz", "$(NATIVE_ORDER)f4"], ["qux", "$(NATIVE_ORDER)i4"]]]]""") == StorageTrees.ParsedType(
