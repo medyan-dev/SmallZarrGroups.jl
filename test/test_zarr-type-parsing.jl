@@ -17,7 +17,6 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
             zarr_size = 0,
             byteorder = [],
             alignment = 0,
-            just_copy = true,
         )
         tests = [
             "S0"=>StaticString{0},
@@ -38,7 +37,6 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
             zarr_size = 1,
             byteorder = [1],
             alignment = 0,
-            just_copy = true,
         )
         tests = [
             "b1"=>Bool,
@@ -74,14 +72,12 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
                 julia_size = s,
                 byteorder = 1:s,
                 alignment = trailing_zeros(s),
-                just_copy = true,
             )
             @test StorageTrees.parse_zarr_type(OTHER_ORDER*pair[1]) == StorageTrees.ParsedType(
                 julia_type = t,
                 julia_size = s,
                 byteorder = s:-1:1,
                 alignment = trailing_zeros(s),
-                just_copy = false,
             )
         end
     end
@@ -100,14 +96,12 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
                     julia_size = s,
                     byteorder = 1:s,
                     alignment = trailing_zeros(hs),
-                    just_copy = true,
             )
             @test StorageTrees.parse_zarr_type(OTHER_ORDER*pair[1]) == StorageTrees.ParsedType(
                 julia_type = t,
                 julia_size = s,
                 byteorder = [(hs:-1:1); (s:-1:(hs+1));],
                 alignment = trailing_zeros(hs),
-                just_copy = false,
             )
         end
     end
@@ -124,14 +118,12 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
                 julia_size = 8,
                 byteorder = 1:8,
                 alignment = 3,
-                just_copy = true,
             )
             @test StorageTrees.parse_zarr_type(OTHER_ORDER*teststr; silence_warnings=true) == StorageTrees.ParsedType(
                 julia_type = Int64,
                 julia_size = 8,
                 byteorder = 8:-1:1,
                 alignment = 3,
-                just_copy = false,
             )
         end
     end
@@ -141,7 +133,6 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
             julia_size = n,
             byteorder = 1:n,
             alignment = 0,
-            just_copy = true,
         )
         for (typestr, t) in ("S"=>StaticString, "V"=>(NTuple{N,UInt8} where N))
             for n in 0:1050
@@ -159,56 +150,48 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
             julia_size = 4,
             byteorder = 1:4,
             alignment = 2,
-            just_copy = true,
         )
         @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U2") == StorageTrees.ParsedType(
             julia_type = SVector{2,Char},
             julia_size = 8,
             byteorder = 1:8,
             alignment = 2,
-            just_copy = true,
         )
         @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3") == StorageTrees.ParsedType(
             julia_type = SVector{3,Char},
             julia_size = 12,
             byteorder = 1:12,
             alignment = 2,
-            just_copy = true,
         )
         @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3000") == StorageTrees.ParsedType(
             julia_type = SVector{3000,Char},
             julia_size = 12000,
             byteorder = 1:12000,
             alignment = 2,
-            just_copy = true,
         )
         @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U1") == StorageTrees.ParsedType(
             julia_type = SVector{1,Char},
             julia_size = 4,
             byteorder = 4:-1:1,
             alignment = 2,
-            just_copy = false,
         )
         @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U2") == StorageTrees.ParsedType(
             julia_type = SVector{2,Char},
             julia_size = 8,
             byteorder = [4,3,2,1,8,7,6,5],
             alignment = 2,
-            just_copy = false,
         )
         @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U3") == StorageTrees.ParsedType(
             julia_type = SVector{3,Char},
             julia_size = 12,
             byteorder = [4,3,2,1,8,7,6,5,12,11,10,9],
             alignment = 2,
-            just_copy = false,
         )
         @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U5") == StorageTrees.ParsedType(
             julia_type = SVector{5,Char},
             julia_size = 20,
             byteorder = [4,3,2,1,8,7,6,5,12,11,10,9,16,15,14,13,20,19,18,17],
             alignment = 2,
-            just_copy = false,
         )
     end
 end
@@ -223,17 +206,63 @@ end
             zarr_size = 0,
             byteorder = [],
             alignment = 0,
-            just_copy = true,
         )
     end
     @testset "one field" begin
-        @test read_parse("""["r", "|u1"]""") == StorageTrees.ParsedType(
+        @test read_parse("""[["r", "|u1"]]""") == StorageTrees.ParsedType(
             julia_type = @NamedTuple{r::UInt8},
             julia_size = 1,
             zarr_size = 1,
             byteorder = [1],
             alignment = 0,
-            just_copy = true,
+        )
+        @test read_parse("""[["g", "$(NATIVE_ORDER)u8"]]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{g::UInt64},
+            julia_size = 8,
+            zarr_size = 8,
+            byteorder = 1:8,
+            alignment = 3,
+        )
+        @test read_parse("""[["g", "$(OTHER_ORDER)u8"]]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{g::UInt64},
+            julia_size = 8,
+            zarr_size = 8,
+            byteorder = 8:-1:1,
+            alignment = 3,
+        )
+    end
+    @testset "simple structs" begin
+        @test read_parse("""[["r", "|u1"], ["g", "|u1"], ["b", "|u1"]]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{r::UInt8,g::UInt8,b::UInt8},
+            julia_size = 3,
+            zarr_size = 3,
+            byteorder = 1:3,
+            alignment = 0,
+        )
+    end
+    @testset "struct alignment" begin
+        @test read_parse("""[["r", "|u1"], ["g", "$(NATIVE_ORDER)u2"], ["b", "|u1"]]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{r::UInt8,g::UInt16,b::UInt8},
+            julia_size = 6,
+            zarr_size = 4,
+            byteorder = [1,3,4,5],
+            alignment = 1,
+        )
+        @test read_parse("""[["r", "|u1"], ["g", "|u1"], ["b", "$(NATIVE_ORDER)u2"]]""") == StorageTrees.ParsedType(
+            julia_type = @NamedTuple{r::UInt8,g::UInt8,b::UInt16},
+            julia_size = 4,
+            zarr_size = 4,
+            byteorder = 1:4,
+            alignment = 1,
+        )
+    end
+    @testset "nested structs" begin
+        @test read_parse("""[["foo", "$(NATIVE_ORDER)f4"], ["bar", [["baz", "$(NATIVE_ORDER)f4"], ["qux", "$(NATIVE_ORDER)i4"]]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:foo, :bar), Tuple{Float32, @NamedTuple{baz::Float32, qux::Int32}}},
+            julia_size = 12,
+            zarr_size = 12,
+            byteorder = 1:12,
+            alignment = 2,
         )
     end
 end

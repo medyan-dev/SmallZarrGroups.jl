@@ -35,8 +35,8 @@ Base.@kwdef struct ParsedType
     0 is 1 byte, 1 is 2 byte, 2 is 4 byte, 3 is 8 byte"
     alignment::Int
 
-    "`zarr_size == julia_size && byteorder == 1:julia_size`"
-    just_copy::Bool
+    # "`zarr_size == julia_size && byteorder == 1:julia_size`"
+    # just_copy::Bool
 end
 
 function Base.:(==)(a::ParsedType, b::ParsedType)
@@ -66,7 +66,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = 1,
             byteorder = [1],
             alignment = 0,
-            just_copy = true,
         )
     elseif typechar == 'i'
         @argcheck numthings in 1:8
@@ -79,7 +78,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings,
             byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
             alignment = ALIGNMENT_LOOKUP[tz+1],
-            just_copy = in_native_order,
         )
     elseif typechar == 'u'
         @argcheck numthings in 1:8
@@ -92,7 +90,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings,
             byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
             alignment = ALIGNMENT_LOOKUP[tz+1],
-            just_copy = in_native_order,
         )
     elseif typechar == 'f'
         @argcheck numthings in 2:8
@@ -105,7 +102,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings,
             byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
             alignment = ALIGNMENT_LOOKUP[tz+1],
-            just_copy = in_native_order,
         )
     elseif typechar == 'c'
         @argcheck numthings in 4:16
@@ -118,7 +114,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings,
             byteorder = in_native_order ? (1:numthings) : [numthings÷2:-1:1; numthings:-1:numthings÷2+1;],
             alignment = ALIGNMENT_LOOKUP[tz],
-            just_copy = in_native_order,
         )
     elseif (typechar == 'm') | (typechar == 'M')
         @argcheck byteorder in "<>"
@@ -131,7 +126,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = 8,
             byteorder = in_native_order ? (1:8) : (8:-1:1),
             alignment = ALIGNMENT_LOOKUP[4],
-            just_copy = in_native_order,
         )
     elseif typechar == 'S'
         return ParsedType(;
@@ -139,7 +133,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings,
             byteorder = 1:numthings,
             alignment = 0,
-            just_copy = true,
         )
     elseif typechar == 'U'
         @argcheck (byteorder in "<>") || iszero(numthings)
@@ -154,7 +147,6 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings*4,
             byteorder = _byteorder,
             alignment = iszero(numthings) ? 0 : 2,
-            just_copy = in_native_order,
         )
     elseif typechar == 'V'
         return ParsedType(;
@@ -162,8 +154,43 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             julia_size = numthings,
             byteorder = 1:numthings,
             alignment = 0,
-            just_copy = true,
         )
     end
 end
 
+"""
+Parse a structured zarr typestr
+"""
+function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
+    current_byte = 0
+    max_alignment = 0
+    byteorder = Int[]
+    feldnames = Symbol[]
+    feldtypes = Type[]
+    for feld in descr
+        name::String = feld[1]
+        parsed_type::ParsedType = if length(feld) > 2
+            error("shape not implemented yet")
+        else
+            parse_zarr_type(feld[2])
+        end
+        push!(feldnames, Symbol(name))
+        push!(feldtypes, parsed_type.julia_type)
+        alignment = parsed_type.alignment
+        max_alignment = max(max_alignment, alignment)
+        num_padding = 2^alignment - mod1(current_byte,2^alignment)
+        current_byte += num_padding
+        @assert iszero(mod(current_byte, 2^alignment))
+        append!(byteorder, parsed_type.byteorder .+ current_byte)
+        current_byte += parsed_type.julia_size
+    end
+    num_padding = 2^max_alignment - mod1(current_byte,2^max_alignment)
+    current_byte += num_padding
+    ParsedType(;
+        julia_type = NamedTuple{(feldnames...,), Tuple{feldtypes...,}},
+        julia_size = current_byte,
+        zarr_size = length(byteorder),
+        byteorder,
+        alignment = max_alignment,
+    )
+end
