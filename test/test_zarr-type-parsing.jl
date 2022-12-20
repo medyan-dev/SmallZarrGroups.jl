@@ -330,4 +330,13 @@ end
             alignment = 1,
         )
     end
+    @testset "3d shape" begin
+        @test read_parse("""[["z", "|u1", [2,3,2]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:z,), Tuple{SArray{Tuple{2,3,2},UInt8,3,12}}},
+            julia_size = 12,
+            zarr_size = 12,
+            byteorder = [1,7,3,9,5,11,2,8,4,10,6,12],
+            alignment = 0,
+        )
+    end
 end
