@@ -173,7 +173,7 @@ function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
             # Parse static array field.
             @argcheck feld[3] isa JSON3.Array
             shape::Vector{Int} = collect(Int,feld[3])
-            el_type = parse_zarr_type(feld[2])
+            el_type = parse_zarr_type(feld[2]; silence_warnings)
             el_size = el_type.julia_size
             zarr_el_size = el_type.zarr_size
             array_byteorder = Vector{Int}(undef, el_type.zarr_size*prod(shape))
@@ -194,7 +194,7 @@ function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
                 alignment = el_type.alignment,
             )
         elseif length(feld) == 2
-            parse_zarr_type(feld[2])
+            parse_zarr_type(feld[2]; silence_warnings)
         else
             error("field must have 2 or three elements")
         end
