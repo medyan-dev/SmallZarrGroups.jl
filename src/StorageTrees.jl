@@ -5,7 +5,7 @@ module StorageTrees
 
 # This version of the API ZArray doesn't have any type parameters.
 
-using DataStructures: SortedDict, OrderedDict, Trie
+using DataStructures: SortedDict, OrderedDict
 using ArgCheck
 using AbstractTrees
 using JSON3

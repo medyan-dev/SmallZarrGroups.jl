@@ -1,4 +1,4 @@
-const DEFAULT_COMPRESSOR = """
+const DEFAULT_COMPRESSOR = JSON3.read("""
     "compressor": {
         "blocksize": 0,
         "clevel": 5,
@@ -6,7 +6,7 @@ const DEFAULT_COMPRESSOR = """
         "id": "blosc",
         "shuffle": 1
     },
-    """
+    """)
 
 const ZDataTypes = Union{
     Bool,
@@ -44,10 +44,10 @@ array after creating the ZArray.
     If `chunks` is `-1`, chunk size will be guessed for balanced random and sequential read performance.
     If `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
 - `compressor::String = "default"`:
+    Only blosc and no compression are supported.
     If `"default"`, `DEFAULT_COMPRESSOR` will be used.
-    If `""`, no compressor will be used.
-    Otherwise, `compressor` must be a json string that can be understood by numcodecs https://github.com/zarr-developers/numcodecs
-    Only use lossless compressors, or data may not round trip correctly.
+    If `nothing`, no compressor will be used.
+    Otherwise, `compressor` must be a json3 object that can be understood by numcodecs https://github.com/zarr-developers/numcodecs
 - `attrs::SortedDict{String,Any}=SortedDict{String,Any}()`:
     JSON3 encodable metadata, not copied on construction. 
     This can be modified after creating the ZArray.
@@ -55,19 +55,17 @@ array after creating the ZArray.
 mutable struct ZArray
     data::Array{<:ZDataTypes}
     chunks::Vector{Int}
-    compressor::String
-    filters::Vector{String}
+    compressor::Union{Nothing, JSON3.Object}
+
     attrs::OrderedDict{String,Any}
     function ZArray(data::Array{T,N};
             chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1,
-            compressor::String="default",
-            filters::Vector{String}=String[],
+            compressor::Union{Nothing, JSON3.Object}=DEFAULT_COMPRESSOR,
             attrs=OrderedDict{String,Any}(),
         ) where {T, N}
         @argcheck isvalidtype(T)
         real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-        real_compressor = (compressor == "default") ? DEFAULT_COMPRESSOR : compressor
-        new(data, real_chunks, real_compressor, filters, attrs)
+        new(data, real_chunks, compressor, filters, attrs)
     end
 end
 
@@ -107,16 +105,12 @@ attrs(za::ZArray) = za.attrs
 
 """
 Set the compressor.
-If `"default"`, `DEFAULT_COMPRESSOR` will be used.
-If `""`, no compressor will be used.
-Otherwise, `compressor` must be a json string that can be understood by numcodecs https://github.com/zarr-developers/numcodecs
-Only use lossless compressors, or data may not round trip correctly.
 """
-function set_compressor!(za::ZArray, compressor::String = "default")
-    za.compressor = (compressor == "default") ? DEFAULT_COMPRESSOR : compressor
+function set_compressor!(za::ZArray, compressor::Union{Nothing, JSON3.Object}=DEFAULT_COMPRESSOR)
+    za.compressor = compressor
 end
 
-get_compressor!(za::ZArray)::String = za.compressor
+get_compressor!(za::ZArray)::Union{Nothing, JSON3.Object} = za.compressor
 
 
 """

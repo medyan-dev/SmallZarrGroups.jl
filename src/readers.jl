@@ -2,9 +2,10 @@
 
 # Doesn't support deleting, or changing data already written.
 
-abstract type AbstractReader end
+using ArgCheck
 
-# abstract type AbstractWriter end
+
+abstract type AbstractReader end
 
 
 struct DirectoryReader <: AbstractReader
@@ -14,6 +15,7 @@ end
 
 function DirectoryReader(dir)
     path = abspath(dir)
+    @argcheck isdir(path)
     lp = length(path)
     keys = String[]
     for (root, dirs, files) in walkdir(path)
@@ -30,11 +32,11 @@ function DirectoryReader(dir)
     DirectoryReader(path, keys)
 end
 
-function zkeys(d::DirectoryReader)::Vector{String}
+function key_names(d::DirectoryReader)::Vector{String}
     return d.keys
 end
 
-function zread(d::DirectoryReader, idx::Int)::Vector{Uint8}
+function read_key_idx(d::DirectoryReader, idx::Int)::Vector{Uint8}
     key = d.keys[idx]
     read(joinpath([d.path; split(key,"/")]))
 end
