@@ -340,3 +340,40 @@ end
         )
     end
 end
+
+
+@testset "parsing fill value" begin
+    tests = [
+        (nothing, "$(NATIVE_ORDER)f8") => zeros(UInt8, 8),
+        (nothing, "|u1") => zeros(UInt8, 1),
+        ("NaN", "$(NATIVE_ORDER)f8") => collect(reinterpret(UInt8,[NaN64])),
+        ("NaN", "$(NATIVE_ORDER)f4") => collect(reinterpret(UInt8,[NaN32])),
+        ("NaN", "$(NATIVE_ORDER)f2") => collect(reinterpret(UInt8,[NaN16])),
+        ("NaN", "$(OTHER_ORDER)f8") => collect(reinterpret(UInt8,[NaN64])),
+        ("NaN", "$(OTHER_ORDER)f4") => collect(reinterpret(UInt8,[NaN32])),
+        ("NaN", "$(OTHER_ORDER)f2") => collect(reinterpret(UInt8,[NaN16])),
+        
+        ("Infinity", "$(NATIVE_ORDER)f8") => collect(reinterpret(UInt8,[Inf64])),
+        ("Infinity", "$(NATIVE_ORDER)f4") => collect(reinterpret(UInt8,[Inf32])),
+        ("Infinity", "$(NATIVE_ORDER)f2") => collect(reinterpret(UInt8,[Inf16])),
+        ("Infinity", "$(OTHER_ORDER)f8") => collect(reinterpret(UInt8,[Inf64])),
+        ("Infinity", "$(OTHER_ORDER)f4") => collect(reinterpret(UInt8,[Inf32])),
+        ("Infinity", "$(OTHER_ORDER)f2") => collect(reinterpret(UInt8,[Inf16])),
+
+        ("-Infinity", "$(NATIVE_ORDER)f8") => collect(reinterpret(UInt8,[-Inf64])),
+        ("-Infinity", "$(NATIVE_ORDER)f4") => collect(reinterpret(UInt8,[-Inf32])),
+        ("-Infinity", "$(NATIVE_ORDER)f2") => collect(reinterpret(UInt8,[-Inf16])),
+        ("-Infinity", "$(OTHER_ORDER)f8") => collect(reinterpret(UInt8,[-Inf64])),
+        ("-Infinity", "$(OTHER_ORDER)f4") => collect(reinterpret(UInt8,[-Inf32])),
+        ("-Infinity", "$(OTHER_ORDER)f2") => collect(reinterpret(UInt8,[-Inf16])),
+
+        ("BBB=", "$(NATIVE_ORDER)f2") => [0x04, 0x10],
+        ("BBB=", "$(OTHER_ORDER)f2") => [0x10, 0x04],
+        ("BBBBCC==", JSON3.read("""[["r", "|u1"], ["g", "$(NATIVE_ORDER)u2"], ["b", "|u1"]]""")) => [0x04,0x00,0x10,0x41,0x08,0x00],
+        ("BBBBCC==", JSON3.read("""[["r", "|u1"], ["g", "$(OTHER_ORDER)u2"], ["b", "|u1"]]""")) => [0x04,0x00,0x41,0x10,0x08,0x00],
+    ]
+    for testpair in tests
+        dtype = StorageTrees.parse_zarr_type(testpair[1][2])
+        @test StorageTrees.parse_zarr_fill_value(testpair[1][1], dtype) == testpair[2]
+    end
+end

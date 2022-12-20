@@ -3,6 +3,8 @@
 using ArgCheck
 using StaticArrays
 using StaticStrings
+import JSON3
+import Base64
 
 "Usually 8, maybe this could be 4 on a 32 bit machine?"
 const DOUBLE_ALIGN = (sizeof(Tuple{Float64,Int8}) == 16) ? 3 : 2
@@ -217,4 +219,24 @@ function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
         byteorder,
         alignment = max_alignment,
     )
+end
+
+
+"""
+Return the fill value in bytes that should be copied to the julia type.
+"""
+function parse_zarr_fill_value(fill_value::Union{String,Nothing}, dtype::ParsedType)::Vector{UInt8}
+    if isnothing(fill_value)
+        zeros(UInt8, dtype.julia_size)
+    elseif (fill_value in ("NaN","Infinity","-Infinity")) && (dtype.julia_type <: AbstractFloat)
+        reinterpret(UInt8,[parse(dtype.julia_type, fill_value)])
+    else
+        zarr_bytes = Base64.base64decode(fill_value)
+        @argcheck length(zarr_bytes) == dtype.zarr_size
+        output = zeros(UInt8, dtype.julia_size)
+        for i in 1:dtype.zarr_size
+            output[dtype.byteorder[i]] = zarr_bytes[i]
+        end
+        output
+    end
 end
