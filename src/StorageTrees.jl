@@ -5,7 +5,7 @@ module StorageTrees
 
 # This version of the API ZArray doesn't have any type parameters.
 
-using DataStructures: SortedDict, OrderedDict
+using DataStructures: SortedDict, OrderedDict, Trie
 using ArgCheck
 using AbstractTrees
 using JSON3
@@ -18,7 +18,6 @@ include("ZArray.jl")
 include("ZGroup.jl")
 
 
-include("zarr-type-parsing.jl")
 include("zarr-meta-parsing.jl")
 include("save-dir.jl")
 include("extra.jl")
