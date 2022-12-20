@@ -273,3 +273,61 @@ end
         )
     end
 end
+
+@testset "structured type parsing with shape" begin
+    read_parse(s) = StorageTrees.parse_zarr_type(JSON3.read(s))
+    @testset "zarr example" begin
+        @test read_parse("""[["x", "$(NATIVE_ORDER)f4"], ["y", "$(NATIVE_ORDER)f4"], ["z", "$(NATIVE_ORDER)f4", [2, 2]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:x, :y, :z), Tuple{Float32, Float32, SMatrix{2,2,Float32,4}}},
+            julia_size = 24,
+            zarr_size = 24,
+            byteorder = [1,2,3,4, 5,6,7,8, 9,10,11,12, 17,18,19,20, 13,14,15,16, 21,22,23,24,],
+            alignment = 2,
+        )
+    end
+    @testset "zero dimensions" begin
+        @test read_parse("""[["z", "|u1", []]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:z,), Tuple{SArray{Tuple{},UInt8,0,1}}},
+            julia_size = 1,
+            zarr_size = 1,
+            byteorder = [1],
+            alignment = 0,
+        )
+    end
+    @testset "zero size" begin
+        @test read_parse("""[["z", "|u1", [0]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:z,), Tuple{SArray{Tuple{0,},UInt8,1,0}}},
+            julia_size = 0,
+            zarr_size = 0,
+            byteorder = [],
+            alignment = 0,
+        )
+    end
+    @testset "one size" begin
+        @test read_parse("""[["z", "|u1", [1]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:z,), Tuple{SArray{Tuple{1,},UInt8,1,1}}},
+            julia_size = 1,
+            zarr_size = 1,
+            byteorder = [1],
+            alignment = 0,
+        )
+    end
+    @testset "non square matrix" begin
+        @test read_parse("""[["z", "|u1", [2,3]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:z,), Tuple{SArray{Tuple{2,3},UInt8,2,6}}},
+            julia_size = 6,
+            zarr_size = 6,
+            byteorder = [1,3,5,2,4,6],
+            alignment = 0,
+        )
+    end
+    @testset "non square matrix alignment" begin
+        @test read_parse("""[["z", [["z", "|u1"],["b", "<u2"]], [2,3]]]""") == StorageTrees.ParsedType(
+            julia_type = NamedTuple{(:z,), Tuple{SArray{Tuple{2,3},NamedTuple{(:z,:b,), Tuple{UInt8,UInt16}},2,6}}},
+            julia_size = 24,
+            zarr_size = 18,
+            byteorder = [1,3,4, 9,11,12, 17,19,20, 5,7,8, 13,15,16, 21,23,24],
+            alignment = 1,
+        )
+    end
+end

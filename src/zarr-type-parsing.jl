@@ -173,18 +173,18 @@ function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
             # Parse static array field.
             @argcheck feld[3] isa JSON3.Array
             shape::Vector{Int} = collect(Int,feld[3])
+            el_type = parse_zarr_type(feld[2])
             el_size = el_type.julia_size
             zarr_el_size = el_type.zarr_size
-            el_type = parse_zarr_type(feld[2])
             array_byteorder = Vector{Int}(undef, el_type.zarr_size*prod(shape))
             # This thing converts a row major linear index to a column major index.
             # This is needed because numpy static arrays are always in row major order
             # and Julia static arrays are always in column major order.
             converter_thing = PermutedDimsArray(LinearIndices(Tuple(shape)),reverse(1:length(shape)))
             for i in 1:length(converter_thing)
-                column_major_idx_0 = converter_thing[i] - 1
-                byte_offset = column_major_idx_0*el_size
-                @view(array_byteorder[(begin+zarr_el_size*(i-1)):(begin+zarr_el_size*i)]) .= el_type.byteorder .+ byte_offset
+                column_major_idx_0::Int = converter_thing[i] - 1
+                local byte_offset::Int = column_major_idx_0*el_size
+                array_byteorder[(1+zarr_el_size*(i-1)):(zarr_el_size*i)] .= el_type.byteorder .+ byte_offset
             end
             ParsedType(;
                 julia_type = SArray{Tuple{shape...,}, el_type.julia_type, length(shape), prod(shape)},
