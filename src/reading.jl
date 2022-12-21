@@ -5,6 +5,8 @@ function load_dir(reader::AbstractReader)::ZGroup
     keynames = key_names(reader)
     splitkeys = map(x->split(x,'/';keepempty=false), keynames)
     keyname_dict = Dict(zip(keynames,eachindex(keynames)))
+    rawchunkdata = Vector{UInt8}()
+    chunkdata = Vector{UInt8}()
     for splitkey in sort(splitkeys)
         if length(splitkey) < 2
             continue
@@ -30,19 +32,30 @@ function load_dir(reader::AbstractReader)::ZGroup
                 reverse(metadata.shape), reverse(metadata.chunks)
             end
             array = fill(fill_value, shape...)
-            
+            zarr_size = metadata.dtype.zarr_size
+            julia_size = metadata.dtype.julia_size
 
             
 
             # If there is no actual data don't load chunks
-            if !(any(==(0), shape) || metadata.dtype.julia_size == 0 || metadata.dtype.zarr_size == 0)
+            if !(any(==(0), shape) || julia_size == 0 || zarr_size == 0)
                 # load chunks
                 for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
-                    chunkname = arrayname*"/"*join(Tuple(chunkidx), metadata.dimension_separator)
+                    chunknametuple = if metadata.is_column_major
+                        Tuple(chunkidx)
+                    else
+                        #shape and chunks have been pre reversed so reverse chunkidx as well.
+                        reverse(Tuple(chunkidx))
+                    end
+                    chunkname = arrayname*"/"*join(chunknametuple, metadata.dimension_separator)
                     chunknameidx = get(Returns(0), keyname_dict, chunkname)
-                    if attrsidx > 0
-                        raw_chunk = read_key_idx(reader,chunknameidx)
-                        decompressed_chunk = 
+                    if chunknameidx > 0
+                        read_key_idx!(rawchunkdata, reader, chunknameidx)
+                        decompressed_chunkdata = decompress!(chunkdata, rawchunkdata, metadata)
+                        shaped_chunkdata = reshape(decompressed_chunkdata, zarr_size, chunks...)
+                        shaped_array = reinterpret(reshape, UInt8, array)
+                        # now create overlapping views
+                        
                     end
                 end
             end
