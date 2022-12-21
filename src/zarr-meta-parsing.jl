@@ -260,7 +260,7 @@ Base.@kwdef struct ParsedMetaData
     compressor::Union{Nothing, JSON3.Object}
     fill_value::Vector{UInt8}
     is_column_major::Bool
-    is_dot_sep::Bool=true
+    dimension_separator::Char='.'
 end
 
 function parse_zarr_metadata(metadata::JSON3.Object)::ParsedMetaData
@@ -280,8 +280,7 @@ function parse_zarr_metadata(metadata::JSON3.Object)::ParsedMetaData
     order = metadata["order"]
     @argcheck order in ("C", "F")
     is_column_major = order == "F"
-    dimension_separator = get(Returns("."), metadata, "dimension_separator")
-    is_dot_sep = dimension_separator == "."
+    dimension_separator = get(Returns("."), metadata, "dimension_separator")[1]
     ParsedMetaData(;
         shape,
         chunks,
@@ -289,6 +288,6 @@ function parse_zarr_metadata(metadata::JSON3.Object)::ParsedMetaData
         compressor,
         fill_value,
         is_column_major,
-        is_dot_sep,
+        dimension_separator,
     )
 end
