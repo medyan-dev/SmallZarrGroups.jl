@@ -78,6 +78,14 @@ function Base.haskey(d::ZGroup, pathstr::AbstractString)
     pathexists && haskey(gr.children, path[end])
 end
 
+function Base.get!(f, d::ZGroup, pathstr::AbstractString)
+    if haskey(output, pathstr)
+        output[pathstr]
+    else
+        output[pathstr] = f()
+    end
+end
+
 Base.values(d::ZGroup) = values(children(d))
 
 Base.pairs(d::ZGroup) = pairs(children(d))
