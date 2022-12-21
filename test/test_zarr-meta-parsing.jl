@@ -371,6 +371,13 @@ end
         ("BBB=", "$(OTHER_ORDER)f2") => [0x10, 0x04],
         ("BBBBCC==", JSON3.read("""[["r", "|u1"], ["g", "$(NATIVE_ORDER)u2"], ["b", "|u1"]]""")) => [0x04,0x00,0x10,0x41,0x08,0x00],
         ("BBBBCC==", JSON3.read("""[["r", "|u1"], ["g", "$(OTHER_ORDER)u2"], ["b", "|u1"]]""")) => [0x04,0x00,0x41,0x10,0x08,0x00],
+
+        (0, "$(NATIVE_ORDER)f2") => [0x00, 0x00],
+        (1, "$(NATIVE_ORDER)u2") => [0x01, 0x00],
+        (1.0, "$(NATIVE_ORDER)f2") => [0x00, 0x3c],
+        (1, "$(OTHER_ORDER)u2") => [0x01, 0x00],
+        (1.0, "$(OTHER_ORDER)f2") => [0x00, 0x3c],
+        (1.5, "$(OTHER_ORDER)f2") => [0x00, 0x3e],
     ]
     for testpair in tests
         dtype = StorageTrees.parse_zarr_type(testpair[1][2])

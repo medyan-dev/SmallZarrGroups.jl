@@ -241,6 +241,13 @@ function parse_zarr_fill_value(fill_value::Union{String,Nothing}, dtype::ParsedT
     end
 end
 
+"""
+Return the fill value in bytes that should be copied to the julia type.
+"""
+function parse_zarr_fill_value(fill_value::Union{Float64,Int64}, dtype::ParsedType)::Vector{UInt8}
+    reinterpret(UInt8,[convert(dtype.julia_type, fill_value)])
+end
+
 
 """
 Zarr Version 2 Array meta data
