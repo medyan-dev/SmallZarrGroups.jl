@@ -79,10 +79,10 @@ function Base.haskey(d::ZGroup, pathstr::AbstractString)
 end
 
 function Base.get!(f, d::ZGroup, pathstr::AbstractString)
-    if haskey(output, pathstr)
-        output[pathstr]
+    if haskey(d, pathstr)
+        d[pathstr]
     else
-        output[pathstr] = f()
+        d[pathstr] = f()
     end
 end
 

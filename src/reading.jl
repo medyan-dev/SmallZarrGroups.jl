@@ -1,18 +1,17 @@
 # reading a storage tree from a directory or zip file.
+using EllipsisNotation
 
 function load_dir(reader::AbstractReader)::ZGroup
     output = ZGroup()
     keynames = key_names(reader)
     splitkeys = map(x->split(x,'/';keepempty=false), keynames)
     keyname_dict = Dict(zip(keynames,eachindex(keynames)))
-    rawchunkdata = Vector{UInt8}()
-    chunkdata = Vector{UInt8}()
     for splitkey in sort(splitkeys)
         if length(splitkey) < 2
             continue
         end
         if splitkey[end] == ".zgroup"
-            groupname = join(splitkey[begin:end-1],'/')
+            groupname = "/"*join(splitkey[begin:end-1],'/')
             group = get!(ZGroup, output, groupname)
             attrsidx = get(Returns(0), keyname_dict, groupname*"/.zattrs")
             if attrsidx > 0
@@ -22,7 +21,8 @@ function load_dir(reader::AbstractReader)::ZGroup
                 end
             end
         elseif splitkey[end] == ".zarray"
-            arrayname = join(splitkey[begin:end-1],'/')
+            arrayname = "/"*join(splitkey[begin:end-1],'/')
+            @show arrayname
             arrayidx = keyname_dict[arrayname*"/.zarray"]
             metadata = parse_zarr_metadata(JSON3.read(read_key_idx(reader, arrayidx)))
             fill_value = reinterpret(metadata.dtype.julia_type, metadata.fill_value)[1]
@@ -35,27 +35,42 @@ function load_dir(reader::AbstractReader)::ZGroup
             zarr_size = metadata.dtype.zarr_size
             julia_size = metadata.dtype.julia_size
 
-            
-
             # If there is no actual data don't load chunks
             if !(any(==(0), shape) || julia_size == 0 || zarr_size == 0)
                 # load chunks
                 for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
+                    chunktuple = Tuple(chunkidx) .- 1
                     chunknametuple = if metadata.is_column_major
-                        Tuple(chunkidx)
+                        chunktuple
                     else
                         #shape and chunks have been pre reversed so reverse chunkidx as well.
-                        reverse(Tuple(chunkidx))
+                        reverse(chunktuple)
                     end
                     chunkname = arrayname*"/"*join(chunknametuple, metadata.dimension_separator)
                     chunknameidx = get(Returns(0), keyname_dict, chunkname)
                     if chunknameidx > 0
-                        read_key_idx!(rawchunkdata, reader, chunknameidx)
-                        decompressed_chunkdata = decompress!(chunkdata, rawchunkdata, metadata)
-                        shaped_chunkdata = reshape(decompressed_chunkdata, zarr_size, chunks...)
-                        shaped_array = reinterpret(reshape, UInt8, array)
-                        # now create overlapping views
-                        
+                        rawchunkdata = read_key_idx(reader, chunknameidx)
+                        decompressed_chunkdata = decompress!(Vector{UInt8}(), rawchunkdata, metadata)
+                        chunkstart = chunktuple .* chunks .+ 1
+                        chunkstop = min.(chunkstart .+ chunks .- 1, shape)
+                        real_chunksize = chunkstop .- chunkstart .+ 1
+                        if zarr_size == 1
+                            shaped_chunkdata = reshape(decompressed_chunkdata, chunks...)
+                            shaped_array = reinterpret(UInt8, array)
+                            array_view = view(shaped_array, (range.(chunkstart, chunkstop))...)
+                            chunk_view = view(shaped_chunkdata, (range.(1, real_chunksize))...)
+                            array_view .= chunk_view
+                        else
+                            shaped_chunkdata = reshape(decompressed_chunkdata, zarr_size, chunks...)
+                            shaped_array = reinterpret(reshape, UInt8, array)
+                            # now create overlapping views
+                            array_view = view(shaped_array, :, (range.(chunkstart, chunkstop))...)
+                            chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
+                            # TODO check if the data can just be directly copied.
+                            for (zarr_byte, julia_byte) in enumerate(metadata.dtype.byteorder)
+                                array_view[julia_byte, ..] .= chunk_view[zarr_byte, ..]
+                            end
+                        end
                     end
                 end
             end
@@ -81,9 +96,7 @@ function load_dir(reader::AbstractReader)::ZGroup
                     attrs(zarray)[string(k)] = v
                 end
             end
-
-            
-            
         end
     end
+    output
 end

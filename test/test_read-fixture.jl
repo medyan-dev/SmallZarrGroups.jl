@@ -26,7 +26,7 @@ function disk_load_compare(zarr, dirpath=joinpath(artifact"fixture","fixture"))
             # ‘w’ means create (overwrite if exists); 
             # ‘w-’ means create (fail if exists).
     )
-    zgroup = StorageTrees.load_dir(dirpath)
+    zgroup = StorageTrees.load_dir(StorageTrees.DirectoryReader(dirpath))
     compare_jl_py_groups(zgroup, python_group)
 
 

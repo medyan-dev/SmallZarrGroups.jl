@@ -1,12 +1,14 @@
-const DEFAULT_COMPRESSOR = JSON3.read("""
-    "compressor": {
+using StaticArrays
+using StaticStrings
+
+const DEFAULT_COMPRESSOR = JSON3.read("""{
         "blocksize": 0,
         "clevel": 5,
         "cname": "lz4",
         "id": "blosc",
         "shuffle": 1
-    },
-    """)
+    }""")
+
 
 const ZDataTypes = Union{
     Bool,
@@ -21,12 +23,16 @@ const ZDataTypes = Union{
     Float16,
     Float32,
     Float64,
+    ComplexF16,
     ComplexF32,
     ComplexF64,
+    StaticString,
+    SVector{N, Char} where N,
+    NTuple{N, UInt8} where N,
 }
 
 function isvalidtype(T::Type)
-    isconcretetype(T) && (T <: ZDataTypes)
+    isconcretetype(T)
 end
 
 """
@@ -53,7 +59,7 @@ array after creating the ZArray.
     This can be modified after creating the ZArray.
 """
 mutable struct ZArray
-    data::Array{<:ZDataTypes}
+    data::Array
     chunks::Vector{Int}
     compressor::Union{Nothing, JSON3.Object}
 
@@ -65,7 +71,7 @@ mutable struct ZArray
         ) where {T, N}
         @argcheck isvalidtype(T)
         real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-        new(data, real_chunks, compressor, filters, attrs)
+        new(data, real_chunks, compressor, attrs)
     end
 end
 

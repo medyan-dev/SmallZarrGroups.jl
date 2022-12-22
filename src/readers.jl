@@ -10,7 +10,7 @@ abstract type AbstractReader end
 
 struct DirectoryReader <: AbstractReader
     path::String
-    keys::::Vector{String}
+    keys::Vector{String}
 end
 
 function DirectoryReader(dir)
@@ -23,7 +23,7 @@ function DirectoryReader(dir)
             fullpath = joinpath(root[begin+lp:end],file)
             fullpath = replace(fullpath, '\\'=>'/')
             fullpath = strip(fullpath, '/')
-            while "//" in fullpath
+            while occursin("//", fullpath)
                 fullpath = replace(fullpath, "//"=>"/")
             end
             push!(keys, "/"*fullpath)
@@ -36,7 +36,12 @@ function key_names(d::DirectoryReader)::Vector{String}
     return d.keys
 end
 
-function read_key_idx(d::DirectoryReader, idx::Int)::Vector{Uint8}
+
+"""
+Read the bytes stored at key idx.
+"""
+function read_key_idx(d::DirectoryReader, idx::Int)::Vector{UInt8}
     key = d.keys[idx]
-    read(joinpath([d.path; split(key,"/")]))
+    filename = joinpath([d.path; split(key,"/")])
+    read(filename)
 end

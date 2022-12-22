@@ -245,7 +245,11 @@ end
 Return the fill value in bytes that should be copied to the julia type.
 """
 function parse_zarr_fill_value(fill_value::Union{Float64,Int64}, dtype::ParsedType)::Vector{UInt8}
-    reinterpret(UInt8,[convert(dtype.julia_type, fill_value)])
+    if iszero(fill_value) # If its zero just set all bytes to zero.
+        zeros(UInt8, dtype.julia_size)
+    else
+        reinterpret(UInt8,[convert(dtype.julia_type, fill_value)])
+    end
 end
 
 
@@ -275,7 +279,6 @@ function parse_zarr_metadata(metadata::JSON3.Object)::ParsedMetaData
     end
     dtype = parse_zarr_type(metadata["dtype"])
     compressor = metadata["compressor"]
-    @argcheck isnothing(compressor) || compressor.id == "blosc"
     fill_value = parse_zarr_fill_value(metadata["fill_value"], dtype)
     order = metadata["order"]
     @argcheck order in ("C", "F")
