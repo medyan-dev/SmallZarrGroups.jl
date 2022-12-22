@@ -22,7 +22,6 @@ function load_dir(reader::AbstractReader)::ZGroup
             end
         elseif splitkey[end] == ".zarray"
             arrayname = "/"*join(splitkey[begin:end-1],'/')
-            @show arrayname
             arrayidx = keyname_dict[arrayname*"/.zarray"]
             metadata = parse_zarr_metadata(JSON3.read(read_key_idx(reader, arrayidx)))
             fill_value = reinterpret(metadata.dtype.julia_type, metadata.fill_value)[1]
@@ -86,7 +85,7 @@ function load_dir(reader::AbstractReader)::ZGroup
                     compressor = metadata.compressor,
                 )
             end
-
+            output[arrayname] = zarray
 
             # load attributes
             attrsidx = get(Returns(0), keyname_dict, arrayname*"/.zattrs")
