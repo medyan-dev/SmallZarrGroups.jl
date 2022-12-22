@@ -34,7 +34,8 @@ end
 
 
 function compare_jl_py_groups(jl_group::ZGroup, py_group)
-    @test PyDict(py_group.attrs.asdict()) == attrs(jl_group)
+    @show attrs(jl_group)
+    @test pyconvert(Dict, PyDict(py_group.attrs.asdict())) == Dict(attrs(jl_group))
     py_subgroup_keys::Vector{String} = sort(string.(collect(py_group.group_keys())))
     jl_subgroup_keys = map(first ,filter(x->x[2] isa ZGroup, collect(pairs(jl_group))))
     @test py_subgroup_keys == jl_subgroup_keys
@@ -51,7 +52,7 @@ function compare_jl_py_groups(jl_group::ZGroup, py_group)
 end
 
 function compare_jl_py_zarray(jl_zarray::StorageTrees.ZArray, py_zarray)
-    @test PyDict(py_zarray.attrs.asdict()) == attrs(jl_zarray)
+    @test pyconvert(Dict, PyDict(py_zarray.attrs.asdict())) == Dict(attrs(jl_zarray))
     # compare shapes
     @test size(jl_zarray.data) == pyconvert(Tuple,py_zarray.shape)
     # test values equal
@@ -76,4 +77,6 @@ end
 
 @testset "read fixture data and compare to zarr-python" begin
     disk_load_compare(zarr)
+    disk_load_compare(zarr, joinpath(@__DIR__,"ring_system.zarr"))
+    disk_load_compare(zarr, joinpath(@__DIR__,"example_all_sites_context.zarr"))
 end

@@ -1,11 +1,23 @@
 # reading a storage tree from a directory or zip file.
 using EllipsisNotation
 
+
+function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict, thingname)
+    attrsidx = get(Returns(0), keyname_dict, thingname*"/.zattrs")
+    if attrsidx > 0
+        jsonobj = JSON3.read(read_key_idx(reader,attrsidx); allow_inf=true)
+        foreach(pairs(jsonobj)) do (k,v)
+            attrs(zthing)[string(k)] = v
+        end
+    end
+end
+
 function load_dir(reader::AbstractReader)::ZGroup
     output = ZGroup()
     keynames = key_names(reader)
     splitkeys = map(x->split(x,'/';keepempty=false), keynames)
     keyname_dict = Dict(zip(keynames,eachindex(keynames)))
+    try_add_attrs!(output, reader, keyname_dict, "")
     for splitkey in sort(splitkeys)
         if length(splitkey) < 2
             continue
@@ -13,13 +25,7 @@ function load_dir(reader::AbstractReader)::ZGroup
         if splitkey[end] == ".zgroup"
             groupname = "/"*join(splitkey[begin:end-1],'/')
             group = get!(ZGroup, output, groupname)
-            attrsidx = get(Returns(0), keyname_dict, groupname*"/.zattrs")
-            if attrsidx > 0
-                jsonobj = JSON3.read(read_key_idx(reader,attrsidx); allow_inf=true)
-                foreach(pairs(jsonobj)) do (k,v)
-                    attrs(group)[string(k)] = v
-                end
-            end
+            try_add_attrs!(group, reader, keyname_dict, groupname)
         elseif splitkey[end] == ".zarray"
             arrayname = "/"*join(splitkey[begin:end-1],'/')
             arrayidx = keyname_dict[arrayname*"/.zarray"]
@@ -87,14 +93,7 @@ function load_dir(reader::AbstractReader)::ZGroup
             end
             output[arrayname] = zarray
 
-            # load attributes
-            attrsidx = get(Returns(0), keyname_dict, arrayname*"/.zattrs")
-            if attrsidx > 0
-                jsonobj = JSON3.read(read_key_idx(reader,attrsidx); allow_inf=true)
-                foreach(pairs(jsonobj)) do (k,v)
-                    attrs(zarray)[string(k)] = v
-                end
-            end
+            try_add_attrs!(zarray, reader, keyname_dict, arrayname)
         end
     end
     output

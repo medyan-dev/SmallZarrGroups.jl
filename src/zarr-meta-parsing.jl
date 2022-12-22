@@ -244,7 +244,7 @@ end
 """
 Return the fill value in bytes that should be copied to the julia type.
 """
-function parse_zarr_fill_value(fill_value::Union{Float64,Int64}, dtype::ParsedType)::Vector{UInt8}
+function parse_zarr_fill_value(fill_value::Union{Bool,Float64,Int64}, dtype::ParsedType)::Vector{UInt8}
     if iszero(fill_value) # If its zero just set all bytes to zero.
         zeros(UInt8, dtype.julia_size)
     else
