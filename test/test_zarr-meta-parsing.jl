@@ -145,49 +145,49 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         @test StorageTrees.parse_zarr_type("|V100000") == staticstringtype((NTuple{N,UInt8} where N),100000)
     end
     @testset "static 32bit char vector" begin
-        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U1") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U1") == StorageTrees.ParsedType(
             julia_type = SVector{1,Char},
             julia_size = 4,
             byteorder = 1:4,
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U2") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U2") == StorageTrees.ParsedType(
             julia_type = SVector{2,Char},
             julia_size = 8,
             byteorder = 1:8,
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U3") == StorageTrees.ParsedType(
             julia_type = SVector{3,Char},
             julia_size = 12,
             byteorder = 1:12,
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3000") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U3000") == StorageTrees.ParsedType(
             julia_type = SVector{3000,Char},
             julia_size = 12000,
             byteorder = 1:12000,
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U1") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U1") == StorageTrees.ParsedType(
             julia_type = SVector{1,Char},
             julia_size = 4,
             byteorder = 4:-1:1,
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U2") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U2") == StorageTrees.ParsedType(
             julia_type = SVector{2,Char},
             julia_size = 8,
             byteorder = [4,3,2,1,8,7,6,5],
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U3") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U3") == StorageTrees.ParsedType(
             julia_type = SVector{3,Char},
             julia_size = 12,
             byteorder = [4,3,2,1,8,7,6,5,12,11,10,9],
             alignment = 2,
         )
-        @test StorageTrees.parse_zarr_type(OTHER_ORDER*"U5") == StorageTrees.ParsedType(
+        @test StorageTrees.parse_zarr_type(NATIVE_ORDER*"U5") == StorageTrees.ParsedType(
             julia_type = SVector{5,Char},
             julia_size = 20,
             byteorder = [4,3,2,1,8,7,6,5,12,11,10,9,16,15,14,13,20,19,18,17],

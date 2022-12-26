@@ -126,7 +126,6 @@ function load_zarray(dirpath, subpath::String)::ZArray
     ZArray(data;
         chunks,
         attrs=load_attrs(dirpath, subpath),
-        compressor="default", # TODO add compressor and filter loading
     )
 end
 

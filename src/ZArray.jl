@@ -31,8 +31,15 @@ const ZDataTypes = Union{
     NTuple{N, UInt8} where N,
 }
 
-function isvalidtype(T::Type)
-    isconcretetype(T)
+function isvalidtype(T::Type)::Bool
+    isbitstype(T) && (
+        (T <: ZDataTypes) ||
+        (T <: NamedTuple) && all(_isvalidfieldtype, fieldtypes(T))
+    )
+end
+
+function _isvalidfieldtype(T::Type)::Bool
+    isvalidtype(T) || (T <: SArray) && isvalidtype(eltype(T))
 end
 
 """
