@@ -66,6 +66,20 @@ function normalize_compressor(compressor::JSON3.Object)::Union{Nothing, JSON3.Ob
         end
         return compressor
     end
+    if compressor.id == "zlib"
+        if get(Returns(1), compressor, "level") ∉ -1:9
+            @warn "zlib level not in -1:9, saving data uncompressed"
+            return nothing
+        end
+        return compressor
+    end
+    if compressor.id == "bz2"
+        if get(Returns(1), compressor, "level") ∉ 1:9
+            @warn "bz2 level not in 1:9, saving data uncompressed"
+            return nothing
+        end
+        return compressor
+    end
     @warn "compressor $(compressor.id) not implemented yet, saving data uncompressed"
     return nothing
 end
@@ -105,6 +119,24 @@ function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Ve
             together with the buffer data causing this and compression settings.
         ")
         resize!(dest, sz)
+    elseif compressor.id == "zlib"
+        level::Int = get(Returns(1), compressor, "level")
+        zlib_codec =  CodecZlib.ZlibCompressor(;level)
+        TranscodingStreams.initialize(zlib_codec)
+        try
+            TranscodingStreams.transcode(zlib_codec, src)
+        finally
+            TranscodingStreams.finalize(zlib_codec)
+        end
+    elseif compressor.id == "bz2"
+        blocksize100k = get(Returns(1), compressor, "level")
+        bz2_codec = CodecBzip2.Bzip2Compressor(;blocksize100k)
+        TranscodingStreams.initialize(bz2_codec)
+        try
+            TranscodingStreams.transcode(bz2_codec, src)
+        finally
+            TranscodingStreams.finalize(bz2_codec)
+        end
     else
         error("compressor not implemented yet")
     end
