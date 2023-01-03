@@ -18,8 +18,13 @@ include("ZArray.jl")
 include("ZGroup.jl")
 
 
-
-include("save-dir.jl")
+include("zarr-meta-parsing.jl")
+include("zarr-meta-writing.jl")
+include("compression.jl")
+include("readers.jl")
+include("loading.jl")
+include("writers.jl")
+include("saving.jl")
 include("extra.jl")
 
 end
