@@ -13,7 +13,8 @@ const ALIGNMENT_LOOKUP = (0, 1, 2, DOUBLE_ALIGN)
 
 "Character for native byte order"
 const NATIVE_ORDER = ENDIAN_BOM == 0x04030201 ? '<' : '>'
-
+"Character for other byte order"
+const OTHER_ORDER = ENDIAN_BOM == 0x04030201 ? '>' : '<'
 
 
 Base.@kwdef struct ParsedType

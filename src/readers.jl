@@ -7,6 +7,10 @@ using ArgCheck
 
 abstract type AbstractReader end
 
+function norm_zarr_path(path::AbstractString)::String
+    join(split(replace(path, '\\'=>'/'), '/'; keepempty=false), '/')
+end
+
 
 struct DirectoryReader <: AbstractReader
     path::String
@@ -16,17 +20,12 @@ end
 function DirectoryReader(dir)
     path = abspath(dir)
     @argcheck isdir(path)
-    lp = length(path)
+    lp = ncodeunits(path)
     keys = String[]
     for (root, dirs, files) in walkdir(path)
         for file in files
             fullpath = joinpath(root[begin+lp:end],file)
-            fullpath = replace(fullpath, '\\'=>'/')
-            fullpath = strip(fullpath, '/')
-            while occursin("//", fullpath)
-                fullpath = replace(fullpath, "//"=>"/")
-            end
-            push!(keys, "/"*fullpath)
+            push!(keys, norm_zarr_path(fullpath))
         end
     end
     DirectoryReader(path, keys)

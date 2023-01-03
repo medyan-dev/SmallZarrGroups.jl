@@ -11,6 +11,8 @@ zarr = pyimport("zarr")
 """
 Compare the results of reading a directory with zarr-python and StorageTrees.
 
+Then write the data with StorageTrees and read and compare again.
+
 The directory must be a group, not an array.
 """
 function disk_load_compare(zarr, dirpath=joinpath(artifact"fixture","fixture"))
@@ -27,13 +29,22 @@ function disk_load_compare(zarr, dirpath=joinpath(artifact"fixture","fixture"))
     )
     zgroup = StorageTrees.load_dir(StorageTrees.DirectoryReader(dirpath))
     compare_jl_py_groups(zgroup, python_group)
-
-
+    newdir = mktempdir()
+    StorageTrees.save_dir(StorageTrees.DirectoryWriter(newdir), zgroup)
+    python_group2 = zarr.open_group(
+        store=zarr.DirectoryStore(newdir),
+        path="/", # Group path within store.
+        mode="r", # Persistence mode: 
+    )
+    zgroup2 = StorageTrees.load_dir(StorageTrees.DirectoryReader(newdir))
+    compare_jl_py_groups(zgroup2, python_group2)
+    compare_jl_py_groups(zgroup2, python_group)
+    compare_jl_py_groups(zgroup, python_group2)
 end
 
 
 function compare_jl_py_groups(jl_group::ZGroup, py_group)
-    @show attrs(jl_group)
+    # @show attrs(jl_group)
     @test pyconvert(Dict, PyDict(py_group.attrs.asdict())) == Dict(attrs(jl_group))
     py_subgroup_keys::Vector{String} = sort(string.(collect(py_group.group_keys())))
     jl_subgroup_keys = map(first ,filter(x->x[2] isa ZGroup, collect(pairs(jl_group))))

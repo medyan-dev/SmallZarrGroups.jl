@@ -19,9 +19,12 @@ include("ZGroup.jl")
 
 
 include("zarr-meta-parsing.jl")
+include("zarr-meta-writing.jl")
 include("compression.jl")
 include("readers.jl")
 include("reading.jl")
+include("writers.jl")
+include("writing.jl")
 include("save-dir.jl")
 include("extra.jl")
 

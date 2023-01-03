@@ -2,8 +2,8 @@
 using EllipsisNotation
 
 
-function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict, thingname)
-    attrsidx = get(Returns(0), keyname_dict, thingname*"/.zattrs")
+function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict,  logical_path)
+    attrsidx = get(Returns(0), keyname_dict, logical_path*".zattrs")
     if attrsidx > 0
         jsonobj = JSON3.read(read_key_idx(reader,attrsidx); allow_inf=true)
         foreach(pairs(jsonobj)) do (k,v)
@@ -23,11 +23,11 @@ function load_dir(reader::AbstractReader)::ZGroup
             continue
         end
         if splitkey[end] == ".zgroup"
-            groupname = "/"*join(splitkey[begin:end-1],'/')
+            groupname = join(splitkey[begin:end-1],'/')
             group = get!(ZGroup, output, groupname)
             try_add_attrs!(group, reader, keyname_dict, groupname)
         elseif splitkey[end] == ".zarray"
-            arrayname = "/"*join(splitkey[begin:end-1],'/')
+            arrayname = join(splitkey[begin:end-1],'/')
             arrayidx = keyname_dict[arrayname*"/.zarray"]
             metadata = parse_zarr_metadata(JSON3.read(read_key_idx(reader, arrayidx)))
             fill_value = reinterpret(metadata.dtype.julia_type, metadata.fill_value)[1]

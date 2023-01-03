@@ -40,3 +40,72 @@ function decompress!(buffer::Vector{UInt8}, src::Vector{UInt8}, metadata::Parsed
         error("$(metadata.compressor.id) compressor not supported yet")
     end
 end
+
+"""
+Normalize compressor
+"""
+normalize_compressor(compressor)::Nothing = nothing
+
+function normalize_compressor(compressor::JSON3.Object)::Union{Nothing, JSON3.Object}
+    if !haskey(compressor, "id")
+        @warn "compressor id missing, saving data uncompressed"
+        return nothing
+    end
+    if compressor.id == "blosc"
+        possible_values = [
+            ("cname", "lz4", ["blosclz", "lz4", "lz4hc", "snappy", "zlib", "zstd"]),
+            ("clevel", 5, 0:9,),
+            ("shuffle", 1, -1:2,),
+            ("blocksize", 0, 0:typemax(Int),),
+        ]
+        for (key, default, val_range) in possible_values
+            if get(Returns(default), compressor, key) ∉ val_range
+                @warn "blosc $key not in $val_range, saving data uncompressed"
+                return nothing
+            end
+        end
+        return compressor
+    end
+    @warn "compressor $(compressor.id) not implemented yet, saving data uncompressed"
+    return nothing
+end
+
+"""
+Return the compressed data, or `src` if no compression used.
+"""
+function compress(compressor::Nothing, src::Vector{UInt8}, elsize::Int)::Vector{UInt8}
+    return src
+end
+
+function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Vector{UInt8}
+    if compressor.id == "blosc"
+        numinternalthreads = 1
+        clevel::Int = get(Returns(5), compressor, "clevel")
+        shuffle::Int = get(Returns(1), compressor, "shuffle")
+        doshuffle::Int = if shuffle == -1
+            if elsize == 1
+                2
+            else
+                1
+            end
+        else
+            shuffle
+        end
+        cname::String = get(Returns("lz4"), compressor, "cname")
+        blocksize::Int = get(Returns(0), compressor, "blocksize")
+        @argcheck length(src) ≤ BLOSC_MAX_BUFFERSIZE
+        dest = Vector{UInt8}(undef, BLOSC_MAX_OVERHEAD + length(src))
+        sz = ccall((:blosc_compress_ctx,Blosc_jll.libblosc), Cint,
+            (Cint, Cint, Csize_t, Csize_t, Ptr{Cvoid}, Ptr{Cvoid}, Csize_t, Cstring, Csize_t, Cint), 
+            clevel, doshuffle, elsize, length(src), src, dest, length(dest), cname, blocksize, numinternalthreads
+        )
+        sz == 0 && error("Blosc cannot compress")
+        sz < 0 && error("Internal Blosc error. This
+            should never happen.  If you see this, please report it back
+            together with the buffer data causing this and compression settings.
+        ")
+        resize!(dest, sz)
+    else
+        error("compressor not implemented yet")
+    end
+end
