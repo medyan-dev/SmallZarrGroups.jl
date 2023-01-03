@@ -1,9 +1,17 @@
-# reading a storage tree from a directory or zip file.
+# loading a storage tree from a directory or zip file.
 using EllipsisNotation
 
+function load_dir(dirpath::AbstractString)::ZGroup
+    if isdir(dirpath)
+        load_dir(DirectoryReader(dirpath))
+    elseif isfile(dirpath)
+        error("zip file loading not implemented yet.")
+    end
+end
 
-function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict,  logical_path)
-    attrsidx = get(Returns(0), keyname_dict, logical_path*".zattrs")
+
+function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict,  key_prefix)
+    attrsidx = get(Returns(0), keyname_dict, key_prefix*".zattrs")
     if attrsidx > 0
         jsonobj = JSON3.read(read_key_idx(reader,attrsidx); allow_inf=true)
         foreach(pairs(jsonobj)) do (k,v)
@@ -25,7 +33,7 @@ function load_dir(reader::AbstractReader)::ZGroup
         if splitkey[end] == ".zgroup"
             groupname = join(splitkey[begin:end-1],'/')
             group = get!(ZGroup, output, groupname)
-            try_add_attrs!(group, reader, keyname_dict, groupname)
+            try_add_attrs!(group, reader, keyname_dict, groupname*"/")
         elseif splitkey[end] == ".zarray"
             arrayname = join(splitkey[begin:end-1],'/')
             arrayidx = keyname_dict[arrayname*"/.zarray"]
@@ -93,7 +101,7 @@ function load_dir(reader::AbstractReader)::ZGroup
             end
             output[arrayname] = zarray
 
-            try_add_attrs!(zarray, reader, keyname_dict, arrayname)
+            try_add_attrs!(zarray, reader, keyname_dict, arrayname*"/")
         end
     end
     output

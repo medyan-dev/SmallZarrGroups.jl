@@ -10,12 +10,13 @@ abstract type AbstractWriter end
 
 struct DirectoryWriter <: AbstractWriter
     path::String
+    function DirectoryWriter(dir)
+        mkpath(dir)
+        new(abspath(dir))
+    end
 end
 
-function DirectoryWriter(dir)
-    mkpath(dir)
-    DirectoryWriter(abspath(dir))
-end
+
 
 """
 Add a key and value to the store.

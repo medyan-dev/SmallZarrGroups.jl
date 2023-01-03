@@ -22,10 +22,9 @@ include("zarr-meta-parsing.jl")
 include("zarr-meta-writing.jl")
 include("compression.jl")
 include("readers.jl")
-include("reading.jl")
+include("loading.jl")
 include("writers.jl")
-include("writing.jl")
-include("save-dir.jl")
+include("saving.jl")
 include("extra.jl")
 
 end

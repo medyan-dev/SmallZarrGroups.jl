@@ -1,4 +1,15 @@
 
+"""
+If dirpath ends in .zip, save to a zip file, otherwise save to a directory.
+"""
+function save_dir(dirpath::AbstractString, z::ZGroup)
+    if endswith(dirpath, ".zip")
+        error("writing zip files not supported yet.")
+    else
+        save_dir(DirectoryWriter(dirpath), z)
+    end
+end
+
 
 """
 Note this will delete pre existing data at dirpath
@@ -15,7 +26,7 @@ function save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray,
     if isempty(attrs(z))
         return
     end
-    write_key(writer, key_prefix*".zattrs", JSON3.pretty(attrs(z); allow_inf=true))
+    write_key(writer, key_prefix*".zattrs", sprint(io->JSON3.pretty(io,attrs(z); allow_inf=true)))
     return
 end
 
