@@ -280,6 +280,8 @@ function parse_zarr_metadata(metadata::JSON3.Object)::ParsedMetaData
     end
     dtype = parse_zarr_type(metadata["dtype"])
     compressor = metadata["compressor"]
+    filters = metadata["filters"]
+    @argcheck isnothing(filters) || isempty(filters)
     fill_value = parse_zarr_fill_value(metadata["fill_value"], dtype)
     order = metadata["order"]
     @argcheck order in ("C", "F")
