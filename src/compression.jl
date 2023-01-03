@@ -129,7 +129,7 @@ function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Ve
             TranscodingStreams.finalize(zlib_codec)
         end
     elseif compressor.id == "bz2"
-        blocksize100k = get(Returns(1), compressor, "level")
+        blocksize100k::Int = get(Returns(1), compressor, "level")
         bz2_codec = CodecBzip2.Bzip2Compressor(;blocksize100k)
         TranscodingStreams.initialize(bz2_codec)
         try
