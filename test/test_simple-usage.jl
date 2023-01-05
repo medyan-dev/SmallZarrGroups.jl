@@ -163,6 +163,7 @@ end
     attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
     mktempdir() do path
         # Note this will delete pre existing data at dirpath
+        # if path ends in ".zip" the data will be saved in a zip file instead.
         StorageTrees.save_dir(path,g)
         gload = StorageTrees.load_dir(path)
         @test collect(gload["testarray1"]) == data1
@@ -191,9 +192,19 @@ end
     g["testgroup1"]["testarray1"] = data3
     attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
     mktempdir() do path
-        # Note this will delete pre existing data at path/test.zip
+        # Note this will delete pre existing data at "path/test.zip".
+        # If path ends in ".zip" the data will be saved in a zip file.
+        # This zip file can be read by zarr-python.
         StorageTrees.save_dir(joinpath(path,"test.zip"),g)
         @test isfile(joinpath(path,"test.zip"))
+        # load_dir can load zip files saved by save_dir, or saved by zarr-python.
+        # It can also load zip files created by zipping a zarr directory.
+        # Note the zip file must be in the format described in the zarr-python docs:
+        # "
+        #  Take note that the files in the Zip file must be relative to the root of the Zarr archive. 
+        #  You may find it easier to create such a Zip file with 7z, e.g.:
+        #       `7z a -tzip archive.zarr.zip archive.zarr/.`
+        # "
         gload = StorageTrees.load_dir(joinpath(path,"test.zip"))
         @test collect(gload["testarray1"]) == data1
         @test attrs(gload["testarray1"]) == OrderedDict([
