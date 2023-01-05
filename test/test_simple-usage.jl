@@ -178,3 +178,33 @@ end
         ])
     end
 end
+
+@testset "saving and loading a zip file" begin
+    g = ZGroup()
+    data1 = rand(10,20)
+    g["testarray1"] = data1
+    attrs(g["testarray1"])["foo"] = "bar1"
+    data2 = rand(Int,20)
+    g["testarray2"] = data2
+    data3 = rand(UInt8,20)
+    g["testgroup1"] = ZGroup()
+    g["testgroup1"]["testarray1"] = data3
+    attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
+    mktempdir() do path
+        # Note this will delete pre existing data at path/test.zip
+        StorageTrees.save_dir(joinpath(path,"test.zip"),g)
+        @test isfile(joinpath(path,"test.zip"))
+        gload = StorageTrees.load_dir(joinpath(path,"test.zip"))
+        @test collect(gload["testarray1"]) == data1
+        @test attrs(gload["testarray1"]) == OrderedDict([
+            "foo" => "bar1",
+        ])
+        @test collect(gload["testarray2"]) == data2
+        @test attrs(gload["testarray2"]) == OrderedDict([])
+        @test attrs(gload) == OrderedDict([])
+        @test collect(gload["testgroup1/testarray1"]) == data3
+        @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
+            "foo" => "bar3",
+        ])
+    end
+end
