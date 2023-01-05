@@ -17,6 +17,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StaticStrings = "4db0a0c5-418a-4e1d-8806-cb305fe13294"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 TranscodingStreams = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
+ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 
 [compat]
 AbstractTrees = "0.4"
@@ -31,4 +32,5 @@ StaticArrays = "1"
 StaticStrings = "0.2"
 StructArrays = "0.6"
 TranscodingStreams = "0.9"
+ZipFile = "0.10"
 julia = "1.8"

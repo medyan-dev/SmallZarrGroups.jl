@@ -2,11 +2,12 @@
 using EllipsisNotation
 
 function load_dir(dirpath::AbstractString)::ZGroup
-    if isdir(dirpath)
-        load_dir(DirectoryReader(dirpath))
+    reader = if isdir(dirpath)
+        DirectoryReader(dirpath)
     elseif isfile(dirpath)
-        error("zip file loading not implemented yet.")
+        BufferedZipReader(dirpath)
     end
+    load_dir(reader)
 end
 
 

@@ -3,11 +3,13 @@
 If dirpath ends in .zip, save to a zip file, otherwise save to a directory.
 """
 function save_dir(dirpath::AbstractString, z::ZGroup)
-    if endswith(dirpath, ".zip")
-        error("writing zip files not supported yet.")
+    writer = if endswith(dirpath, ".zip")
+        BufferedZipWriter(dirpath)
     else
-        save_dir(DirectoryWriter(dirpath), z)
+        DirectoryWriter(dirpath)
     end
+    save_dir(writer, z)
+    closewriter(writer)
 end
 
 
