@@ -9,16 +9,16 @@ zarr = pyimport("zarr")
 
 
 """
-Compare the results of reading a directory with zarr-python and StorageTrees.
+Compare the results of reading a directory or zip file with zarr-python and StorageTrees.
 
 Then write the data with StorageTrees and read and compare again.
 
 The directory must be a group, not an array.
 """
-function disk_load_compare(zarr, dirpath=joinpath(artifact"fixture","fixture"))
+function disk_load_compare(zarr, dirpath)
     # get path of python group
     python_group = zarr.open_group(
-        store=zarr.DirectoryStore(dirpath),
+        store=dirpath,
         path="/", # Group path within store.
         mode="r", # Persistence mode: 
             # ‘r’ means read only (must exist); 
@@ -27,16 +27,20 @@ function disk_load_compare(zarr, dirpath=joinpath(artifact"fixture","fixture"))
             # ‘w’ means create (overwrite if exists); 
             # ‘w-’ means create (fail if exists).
     )
-    zgroup = StorageTrees.load_dir(StorageTrees.DirectoryReader(dirpath))
+    zgroup = StorageTrees.load_dir(dirpath)
     compare_jl_py_groups(zgroup, python_group)
-    newdir = mktempdir()
-    StorageTrees.save_dir(StorageTrees.DirectoryWriter(newdir), zgroup)
+    newdir = if isdir(dirpath)
+        mktempdir()
+    else
+        joinpath(mktempdir(), "temp.zarr.zip")
+    end
+    StorageTrees.save_dir(newdir, zgroup)
     python_group2 = zarr.open_group(
-        store=zarr.DirectoryStore(newdir),
+        store=newdir,
         path="/", # Group path within store.
         mode="r", # Persistence mode: 
     )
-    zgroup2 = StorageTrees.load_dir(StorageTrees.DirectoryReader(newdir))
+    zgroup2 = StorageTrees.load_dir(newdir)
     compare_jl_py_groups(zgroup2, python_group2)
     compare_jl_py_groups(zgroup2, python_group)
     compare_jl_py_groups(zgroup, python_group2)
@@ -86,7 +90,9 @@ end
 
 
 @testset "read fixture data and compare to zarr-python" begin
-    disk_load_compare(zarr)
-    # disk_load_compare(zarr, joinpath(@__DIR__,"ring_system.zarr"))
+    disk_load_compare(zarr, joinpath(artifact"fixture", "fixture"))
+    disk_load_compare(zarr, joinpath(artifact"fixture", "fixture.zip"))
+    disk_load_compare(zarr, joinpath(artifact"fixture", "ring_system.zarr"))
+    disk_load_compare(zarr, joinpath(artifact"fixture", "ring_system.zarr.zip"))
     # disk_load_compare(zarr, joinpath(@__DIR__,"example_all_sites_context.zarr"))
 end
