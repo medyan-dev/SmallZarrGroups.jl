@@ -1,5 +1,4 @@
 # loading a storage tree from a directory or zip file.
-using EllipsisNotation
 
 function load_dir(dirpath::AbstractString)::ZGroup
     reader = if isdir(dirpath)
@@ -82,7 +81,7 @@ function load_dir(reader::AbstractReader)::ZGroup
                             chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
                             # TODO check if the data can just be directly copied.
                             for (zarr_byte, julia_byte) in enumerate(metadata.dtype.byteorder)
-                                array_view[julia_byte, ..] .= chunk_view[zarr_byte, ..]
+                                selectdim(array_view, 1, julia_byte) .= selectdim(chunk_view, 1, zarr_byte)
                             end
                         end
                     end

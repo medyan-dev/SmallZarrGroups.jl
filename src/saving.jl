@@ -83,7 +83,7 @@ function save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
             chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
             # TODO check if the data can just be directly copied.
             for (zarr_byte, julia_byte) in enumerate(dtype.byteorder)
-                chunk_view[zarr_byte, ..] .= array_view[julia_byte, ..]
+                selectdim(chunk_view, 1, zarr_byte) .= selectdim(array_view, 1, julia_byte)
             end
             compressed_chunkdata = compress(norm_compressor, reshape(shaped_chunkdata,:), zarr_size)
             chunkname = key_prefix*join(chunktuple, '.')
