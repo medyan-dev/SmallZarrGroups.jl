@@ -65,8 +65,8 @@ array after creating the ZArray.
     JSON3 encodable metadata, not copied on construction. 
     This can be modified after creating the ZArray.
 """
-mutable struct ZArray
-    data::Array
+mutable struct ZArray{T,N} <: AbstractArray{T,N}
+    data::Array{T,N}
     chunks::Vector{Int}
     compressor::Union{Nothing, JSON3.Object}
 
@@ -78,7 +78,7 @@ mutable struct ZArray
         ) where {T, N}
         @argcheck isvalidtype(T)
         real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-        new(data, real_chunks, compressor, attrs)
+        new{T,N}(data, real_chunks, compressor, attrs)
     end
 end
 
@@ -101,6 +101,21 @@ This doesn't copy the array, so don't resize the array returned from this functi
 function getarray(za::ZArray)
     za.data
 end
+
+function Base.parent(za::ZArray)
+    za.data
+end
+
+## Abstract Array interface
+Base.size(za::ZArray, args...; kwargs...) = size(parent(za), args...; kwargs...)
+Base.getindex(za::ZArray, args...; kwargs...) = getindex(parent(za), args...; kwargs...)
+Base.IndexStyle(::Type{<:ZArray}) = IndexLinear()
+Base.setindex!(za::ZArray, args...; kwargs...) = setindex!(parent(za), args...; kwargs...)
+Base.strides(za::ZArray) = strides(parent(za))
+Base.unsafe_convert(t::Type{<:Ptr}, za::ZArray) = Base.unsafe_convert(t, parent(za))
+Base.elsize(::Type{A}) where {T, A<:ZArray{T}} = Base.elsize(Array{T})
+Base.stride(za::ZArray, i::Int) = Base.stride(parent(za), i::Int)
+
 
 function Base.collect(za::ZArray)::Array
     collect(za.data)

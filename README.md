@@ -12,7 +12,7 @@ If you need to store huge datasets that cannot fit uncompressed in memory consid
 
 If you just want to serialize arbitrary Julia data consider using https://github.com/JuliaIO/JLD2.jl or https://github.com/invenia/JLSO.jl
 
-## Goals
+## Overview
 
 1. `ZGroup` represents a tree with arrays as leaves.
 1. `ZGroup` leaf arrays are uncompressed but store metadata about how they should be compressed when saved to disk.

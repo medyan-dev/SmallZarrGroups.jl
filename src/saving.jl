@@ -18,13 +18,13 @@ Note this will delete pre existing data at dirpath
 """
 function save_dir(writer::AbstractWriter, z::ZGroup)
     # TODO add something to prevent loops
-    save_zgroup(writer, "", z::ZGroup)
+    _save_zgroup(writer, "", z::ZGroup)
 end
 
 """
 save attributes using JSON3
 """
-function save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray,ZGroup})
+function _save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray,ZGroup})
     if isempty(attrs(z))
         return
     end
@@ -32,10 +32,10 @@ function save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray,
     return
 end
 
-function save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
+function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
     group_key = key_prefix*".zgroup"
     write_key(writer, group_key, "{\"zarr_format\":2}")
-    save_attrs(writer, key_prefix, z)
+    _save_attrs(writer, key_prefix, z)
     for (k,v) in pairs(children(z))
         @argcheck !isempty(k)
         @argcheck k != "."
@@ -44,9 +44,9 @@ function save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
         @argcheck '\\' ∉ k
         child_key_prefix = String(key_prefix*k*"/")
         if v isa ZGroup
-            save_zgroup(writer, child_key_prefix, v)
+            _save_zgroup(writer, child_key_prefix, v)
         elseif v isa ZArray
-            save_zarray(writer, child_key_prefix, v)
+            _save_zarray(writer, child_key_prefix, v)
         else
             error("unreachable")
         end
@@ -54,8 +54,8 @@ function save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
 end
 
 
-function save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
-    save_attrs(writer, key_prefix, z)
+function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
+    _save_attrs(writer, key_prefix, z)
     # Get type info
     data = getarray(z)
     dtype_str::String = sprint(write_type, eltype(data))

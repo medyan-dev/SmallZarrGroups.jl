@@ -1,3 +1,9 @@
+"""
+    ZGroup()
+Represents a tree with `ZArray` leaves.
+
+Can have JSON3 serializable attributes attached to any node or leaf.
+"""
 Base.@kwdef struct ZGroup
     children::SortedDict{String,Union{ZArray,ZGroup}} = SortedDict{String,Union{ZArray,ZGroup}}()
     attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()
@@ -100,16 +106,42 @@ function Base.delete!(d::ZGroup, pathstr::AbstractString)
     d
 end
 
-
-function Base.show(io::IO, ::MIME"text/plain", d::ZGroup)
-    print_tree(io, d; maxdepth=5, printkeys=true) do io, node
-        if node isa ZGroup
-            print(io, "📂 ")
-        elseif node isa ZArray
-            print(io, "🔢 ", join(size(getarray(node)),"×"), " ", eltype(getarray(node)), " ")
+function _print_group(io::IO, zg::ZGroup, prefix::String)
+    num_childern = length(pairs(zg))
+    for (i, (k, child)) in enumerate(pairs(zg))
+        println(io)
+        last_child = i == num_childern
+        print(io, prefix)
+        if last_child
+            print(io, "└─ ")
+        else
+            print(io, "├─ ")
         end
-        for (k, v) in attrs(node)
-            print(io, "🏷️\"$k\" => $(repr(v)), ")
+        if child isa ZGroup
+            print(io, "📂 ", k)
+        elseif child isa ZArray
+            print(io, "🔢 ", k, ": ")
+            join(io, size(parent(child)),"×")
+            print(io, " ", eltype(parent(child)), " ")
+        end
+        for (k, v) in attrs(child)
+            print(io, " 🏷️ $k => $(repr(v)),")
+        end
+        if child isa ZGroup
+            if last_child
+                child_prefix = prefix * "   "
+            else
+                child_prefix = prefix * "|  "
+            end
+            _print_group(io, child, child_prefix)
         end
     end
+end
+
+function Base.show(io::IO, ::MIME"text/plain", zg::ZGroup)
+    print(io, "📂")
+    for (k, v) in attrs(zg)
+        print(io, " 🏷️ $k => $(repr(v)),")
+    end
+    _print_group(io, zg, "")
 end

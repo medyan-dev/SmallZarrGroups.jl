@@ -5,7 +5,7 @@ using Test
 @testset "create empty ZGroup" begin
     zg = ZGroup()
     @test repr("text/plain",zg) == """
-    📂 
+    📂\
     """
 end
 
@@ -15,19 +15,19 @@ end
     # Save and copy an abstract array with setindex!
     zg["random_data"] = rand(30,10)
     @test repr("text/plain",zg) == """
-        📂 
-        └─ "random_data" ⇒ 🔢 30×10 Float64 
+        📂
+        └─ 🔢 random_data: 30×10 Float64 \
         """
 
     # Save and copy data to a sub group using "/" as a path separator.
     # All intermediate groups will be automatically created.
     zg["group1/subgroup2/random_data"] = rand(30)
     @test repr("text/plain",zg) == """
-        📂 
-        ├─ "group1" ⇒ 📂 
-        │             └─ "subgroup2" ⇒ 📂 
-        │                              └─ "random_data" ⇒ 🔢 30 Float64 
-        └─ "random_data" ⇒ 🔢 30×10 Float64 
+        📂
+        ├─ 📂 group1
+        |  └─ 📂 subgroup2
+        |     └─ 🔢 random_data: 30 Float64 
+        └─ 🔢 random_data: 30×10 Float64 \
         """
 
     # \ and / are both treated as path separators.
@@ -54,14 +54,15 @@ end
     #     Float64,
     #     ComplexF32,
     #     ComplexF64,
+    #     NTuple{N, UInt8} where N,
     # }
     @test_throws ArgumentError zg["a"] = fill(BigInt(10),3)
     @test repr("text/plain",zg) == """
-        📂 
-        ├─ "group1" ⇒ 📂 
-        │             └─ "subgroup2" ⇒ 📂 
-        │                              └─ "random_data" ⇒ 🔢 30 Float64 
-        └─ "random_data" ⇒ 🔢 30×10 Float64 
+        📂
+        ├─ 📂 group1
+        |  └─ 📂 subgroup2
+        |     └─ 🔢 random_data: 30 Float64 
+        └─ 🔢 random_data: 30×10 Float64 \
         """
 
     # Sub groups can also be added with setindex!
@@ -71,35 +72,35 @@ end
     othergroup["bar"] = [1,2,4]
     zg["innergroup2"] = othergroup
     @test repr("text/plain",zg) == """
-        📂 
-        ├─ "group1" ⇒ 📂 
-        │             └─ "subgroup2" ⇒ 📂 
-        │                              └─ "random_data" ⇒ 🔢 30 Float64 
-        ├─ "innergroup2" ⇒ 📂 
-        │                  └─ "bar" ⇒ 🔢 3 Int64 
-        └─ "random_data" ⇒ 🔢 30×10 Float64 
+        📂
+        ├─ 📂 group1
+        |  └─ 📂 subgroup2
+        |     └─ 🔢 random_data: 30 Float64 
+        ├─ 📂 innergroup2
+        |  └─ 🔢 bar: 3 Int64 
+        └─ 🔢 random_data: 30×10 Float64 \
         """
     @test repr("text/plain",othergroup) == """
-        📂 
-        └─ "bar" ⇒ 🔢 3 Int64 
+        📂
+        └─ 🔢 bar: 3 Int64 \
         """
     
     # Mutating one group will also effect the other now.
     othergroup["foo"] = [1.5,3.4]
     @test repr("text/plain",zg) == """
-        📂 
-        ├─ "group1" ⇒ 📂 
-        │             └─ "subgroup2" ⇒ 📂 
-        │                              └─ "random_data" ⇒ 🔢 30 Float64 
-        ├─ "innergroup2" ⇒ 📂 
-        │                  ├─ "bar" ⇒ 🔢 3 Int64 
-        │                  └─ "foo" ⇒ 🔢 2 Float64 
-        └─ "random_data" ⇒ 🔢 30×10 Float64 
+        📂
+        ├─ 📂 group1
+        |  └─ 📂 subgroup2
+        |     └─ 🔢 random_data: 30 Float64 
+        ├─ 📂 innergroup2
+        |  ├─ 🔢 bar: 3 Int64 
+        |  └─ 🔢 foo: 2 Float64 
+        └─ 🔢 random_data: 30×10 Float64 \
         """
     @test repr("text/plain",othergroup) == """
-        📂 
-        ├─ "bar" ⇒ 🔢 3 Int64 
-        └─ "foo" ⇒ 🔢 2 Float64 
+        📂
+        ├─ 🔢 bar: 3 Int64 
+        └─ 🔢 foo: 2 Float64 \
         """
     
     # haskey can be used to check if a path exists.
@@ -134,9 +135,9 @@ end
     delete!(zg,"innergroup2")
     delete!(zg,"group1/subgroup2")
     @test repr("text/plain",zg) == """
-        📂 
-        ├─ "group1" ⇒ 📂 
-        └─ "random_data" ⇒ 🔢 30×10 Float64 
+        📂
+        ├─ 📂 group1
+        └─ 🔢 random_data: 30×10 Float64 \
         """
 end
 
@@ -147,6 +148,25 @@ end
     @test collect(zg["data"]) == [1,2,4]
     @test collect(Int64, zg["data"]) isa Vector{Int64}
     @test collect(Int64, zg["data"]) == [1,2,4]
+end
+
+@testset "data in a group can be treated as an array" begin
+    zg = ZGroup()
+    zg["data"] = Int32[1,2,4]
+    za = zg["data"]
+    za isa AbstractVector{Int32}
+
+    # Use parent to get the internal array.
+    # Do not change the size of this array.
+    parent(za) isa Vector{Int32}
+    
+    # Mutating the array also mutates the group
+    za[1] = 4
+    @test zg["data"] == za
+    @test za == Int32[4,2,4]
+
+    # The array cannot be resized
+    @test_throws MethodError push!(za, 4)
 end
 
 
@@ -166,14 +186,14 @@ end
         # if path ends in ".zip" the data will be saved in a zip file instead.
         StorageTrees.save_dir(path,g)
         gload = StorageTrees.load_dir(path)
-        @test collect(gload["testarray1"]) == data1
+        @test gload["testarray1"] == data1
         @test attrs(gload["testarray1"]) == OrderedDict([
             "foo" => "bar1",
         ])
-        @test collect(gload["testarray2"]) == data2
+        @test gload["testarray2"] == data2
         @test attrs(gload["testarray2"]) == OrderedDict([])
         @test attrs(gload) == OrderedDict([])
-        @test collect(gload["testgroup1/testarray1"]) == data3
+        @test gload["testgroup1/testarray1"] == data3
         @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
             "foo" => "bar3",
         ])
@@ -210,10 +230,10 @@ end
         @test attrs(gload["testarray1"]) == OrderedDict([
             "foo" => "bar1",
         ])
-        @test collect(gload["testarray2"]) == data2
+        @test gload["testarray2"] == data2
         @test attrs(gload["testarray2"]) == OrderedDict([])
         @test attrs(gload) == OrderedDict([])
-        @test collect(gload["testgroup1/testarray1"]) == data3
+        @test gload["testgroup1/testarray1"] == data3
         @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
             "foo" => "bar3",
         ])
