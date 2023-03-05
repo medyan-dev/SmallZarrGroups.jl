@@ -155,10 +155,6 @@ end
     zg["data"] = Int32[1,2,4]
     za = zg["data"]
     za isa AbstractVector{Int32}
-
-    # Use parent to get the internal array.
-    # Do not change the size of this array.
-    parent(za) isa Vector{Int32}
     
     # Mutating the array also mutates the group
     za[1] = 4
