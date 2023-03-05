@@ -5,6 +5,8 @@ function load_dir(dirpath::AbstractString)::ZGroup
         DirectoryReader(dirpath)
     elseif isfile(dirpath)
         BufferedZipReader(dirpath)
+    else
+        throw(ArgumentError("loading directory $(repr(dirpath)): No such file or directory"))
     end
     load_dir(reader)
 end
