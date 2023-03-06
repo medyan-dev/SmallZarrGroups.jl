@@ -111,10 +111,10 @@ Base.size(za::ZArray, args...; kwargs...) = size(parent(za), args...; kwargs...)
 Base.getindex(za::ZArray, args...; kwargs...) = getindex(parent(za), args...; kwargs...)
 Base.IndexStyle(::Type{<:ZArray}) = IndexLinear()
 Base.setindex!(za::ZArray, args...; kwargs...) = setindex!(parent(za), args...; kwargs...)
-Base.strides(za::ZArray) = strides(parent(za))
-Base.unsafe_convert(t::Type{<:Ptr}, za::ZArray) = Base.unsafe_convert(t, parent(za))
-Base.elsize(::Type{A}) where {T, A<:ZArray{T}} = Base.elsize(Array{T})
-Base.stride(za::ZArray, i::Int) = Base.stride(parent(za), i::Int)
+# Base.strides(za::ZArray) = strides(parent(za))
+# Base.unsafe_convert(t::Type{<:Ptr}, za::ZArray) = Base.unsafe_convert(t, parent(za))
+# Base.elsize(::Type{A}) where {T, A<:ZArray{T}} = Base.elsize(Array{T})
+# Base.stride(za::ZArray, i::Int) = Base.stride(parent(za), i::Int)
 
 
 function Base.collect(za::ZArray)::Array
