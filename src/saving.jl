@@ -48,7 +48,7 @@ function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
         elseif v isa ZArray
             _save_zarray(writer, child_key_prefix, v)
         else
-            error("unreachable")
+            error("unreachable") # COV_EXCL_LINE
         end
     end
 end

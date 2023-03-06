@@ -53,7 +53,7 @@ function read_nested_struct_array!(data::StructArray, group::ZGroup)
             oldchilddata = getproperty(data,pname)
             read_nested_struct_array!(oldchilddata, child)
         else
-            error("unreachable")
+            error("unreachable") # COV_EXCL_LINE
         end
     end
 end
@@ -152,7 +152,7 @@ macro test_equal(group1,group2,ignorename=:(Returns(false)))
     group1name = lpad(group1name, maxnamewidth)
     group2name = lpad(group2name, maxnamewidth)
     esc(quote
-        let diff = sprint(io->MEDYAN.StorageTrees.print_diff(io,$group1, $group2, $group1name, $group2name, "", $ignorename))
+        let diff = sprint(io->StorageTrees.print_diff(io,$group1, $group2, $group1name, $group2name, "", $ignorename))
             print(diff)
             @test isempty(diff) == true
         end
