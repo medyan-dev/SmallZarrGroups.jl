@@ -1,7 +1,7 @@
 # Parse zarr array meta data descriptions.
 
 using ArgCheck
-using StaticArrays
+using StaticArraysCore
 using StaticStrings
 import JSON3
 import Base64

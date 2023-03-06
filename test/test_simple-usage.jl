@@ -174,6 +174,7 @@ end
     g = ZGroup()
     data1 = rand(10,20)
     g["testarray1"] = data1
+    attrs(g)["qaz"] = "baz"
     attrs(g["testarray1"])["foo"] = "bar1"
     data2 = rand(Int,20)
     g["testarray2"] = data2
@@ -192,7 +193,9 @@ end
         ])
         @test gload["testarray2"] == data2
         @test attrs(gload["testarray2"]) == OrderedDict([])
-        @test attrs(gload) == OrderedDict([])
+        @test attrs(gload) == OrderedDict([
+            "qaz" => "baz",
+        ])
         @test gload["testgroup1/testarray1"] == data3
         @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
             "foo" => "bar3",
