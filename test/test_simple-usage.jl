@@ -153,8 +153,12 @@ end
 @testset "data in a group can be treated as an array" begin
     zg = ZGroup()
     zg["data"] = Int32[1,2,4]
+    rand_matrix = rand(20,20)
+    zg["matrix"] = rand_matrix
     za = zg["data"]
     za isa AbstractVector{Int32}
+
+    @test zg["matrix"] * zg["matrix"] ≈ rand_matrix * rand_matrix
     
     # Mutating the array also mutates the group
     za[1] = 4
