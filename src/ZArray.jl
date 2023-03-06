@@ -1,4 +1,4 @@
-using StaticArrays
+using StaticArraysCore
 using StaticStrings
 
 const DEFAULT_COMPRESSOR = JSON3.read("""{
