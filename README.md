@@ -1,8 +1,7 @@
 # StorageTrees (WIP)
 
 [![Build Status](https://github.com/medyan-dev/StorageTrees.jl/workflows/CI/badge.svg)](https://github.com/medyan-dev/StorageTrees.jl/actions)
-
-
+[![codecov](https://codecov.io/gh/medyan-dev/StorageTrees.jl/branch/main/graph/badge.svg?token=UUOFUEIX8K)](https://codecov.io/gh/medyan-dev/StorageTrees.jl)
 
 In memory hierarchy of arrays and attributes loaded from disk or to be saved to disk with Zarr.
 
