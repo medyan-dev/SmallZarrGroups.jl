@@ -9,6 +9,9 @@ using Test
     attrs(g)["2"] = 123
     attrs(g)["weird-number"] = 1.5
     attrs(g)["list"] = [1,2,3,4]
+    @test repr("text/plain",g) == """
+        📂 🏷️ foo => "bar", 🏷️ 2 => 123, 🏷️ weird-number => 1.5, 🏷️ list => [1, 2, 3, 4],\
+        """
     mktempdir() do path
         StorageTrees.save_dir(path,g)
         gload = StorageTrees.load_dir(path)

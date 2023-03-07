@@ -138,6 +138,9 @@ function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Ve
             TranscodingStreams.finalize(bz2_codec)
         end
     else
-        error("compressor not implemented yet")
+        # This should be unreachable because 
+        # unknown compressors will be normalized to 
+        # uncompressed when saving.
+        error("compressor not implemented yet") # COV_EXCL_LINE
     end
 end

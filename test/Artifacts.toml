@@ -1,7 +1,6 @@
-# a simple Artifacts.toml file
 [fixture]
-git-tree-sha1 = "6294e27997b8718402c19e59787fcacd88440a09"
+git-tree-sha1 = "eea621a89795e18e0d74d6b28822b265c62d62b8"
 
     [[fixture.download]]
-    url = "https://github.com/medyan-dev/StorageTrees.jl/releases/download/v0.2.0/zarr-fixture2.tar.gz"
-    sha256 = "a73086be29707a5a32209337fcb7c498e15f2bb9ac9d2ae243ce5846f61d8bec"
+    sha256 = "5ebeec7532f078d9deccc6f30542c8dcafa3b995f35cbbf316ba523fdc1c2342"
+    url = "https://github.com/medyan-dev/StorageTrees.jl/releases/download/v0.4.0/zarr-fixture3.tar.gz"

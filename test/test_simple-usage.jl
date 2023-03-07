@@ -111,6 +111,7 @@ end
     @test haskey(zg,"innergroup2/foo/")
     @test !haskey(zg,"innergroup2/foo/a")
     @test !haskey(zg,"innergroup2/foo2")
+    @test !haskey(zg,"bar/foo2")
     @test haskey(zg,"group1/subgroup2")
     @test haskey(zg,"/group1//subgroup2/")
     @test haskey(zg,"group1\\subgroup2")
@@ -168,7 +169,6 @@ end
     # The array cannot be resized
     @test_throws MethodError push!(za, 4)
 end
-
 
 @testset "saving and loading a directory" begin
     g = ZGroup()
