@@ -25,6 +25,7 @@ include("readers.jl")
 include("loading.jl")
 include("writers.jl")
 include("saving.jl")
-include("extra.jl")
+include("print-diff.jl")
+include("experimental/structarrays.jl")
 
 end
