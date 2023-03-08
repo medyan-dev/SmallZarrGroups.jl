@@ -123,13 +123,6 @@ end
         "innergroup2" => zg["innergroup2"],
         "random_data" => zg["random_data"],
     ])
-
-    # attr can be used to get an OrderedDict of attributes
-    @test attrs(zg) isa OrderedDict{String, Any}
-    @test isempty(attrs(zg))
-    @test attrs(zg["random_data"]) isa OrderedDict{String, Any}
-    @test isempty(attrs(zg["random_data"]))
-
     
     # keys can be deleted from a group
     delete!(zg,"innergroup2/bar")
@@ -170,6 +163,28 @@ end
     @test_throws MethodError push!(za, 4)
 end
 
+@testset "add metadata to groups or arrays with attrs" begin
+    zg = ZGroup()
+    get!(Returns(rand(10)), zg, "random_data")
+
+    # attrs can be used to get an OrderedDict of attributes
+    @test attrs(zg) isa OrderedDict{String, Any}
+    @test isempty(attrs(zg))
+    @test attrs(zg["random_data"]) isa OrderedDict{String, Any}
+    @test isempty(attrs(zg["random_data"]))
+
+    # Any JSON3 serializable data can be added as an attribute.
+    # To be maximally compatible with other zarr readers,
+    # it is probably safest to stick to just strings.
+    attrs(zg)["time s"] = "10.5"
+    attrs(zg["random_data"])["units"] = "meters"
+    @test repr("text/plain",zg) == """
+        📂 🏷️ time s => "10.5",
+        └─ 🔢 random_data: 10 Float64  🏷️ units => "meters",\
+        """
+end
+
+
 @testset "saving and loading a directory" begin
     g = ZGroup()
     data1 = rand(10,20)
@@ -200,6 +215,13 @@ end
         @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
             "foo" => "bar3",
         ])
+        @test repr("text/plain",gload) == """
+            📂 🏷️ qaz => "baz",
+            ├─ 🔢 testarray1: 10×20 Float64  🏷️ foo => "bar1",
+            ├─ 🔢 testarray2: 20 Int64 
+            └─ 📂 testgroup1
+               └─ 🔢 testarray1: 20 UInt8  🏷️ foo => "bar3",\
+            """
     end
 end
 

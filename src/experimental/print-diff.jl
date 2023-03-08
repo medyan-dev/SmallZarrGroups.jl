@@ -31,9 +31,9 @@ function print_diff(io, group1::ZArray, group2::ZArray, group1name="group1", gro
     if !isequal(data1,data2)
 		for (groupname,data) in [(group1name,data1),(group2name,data2)]
 			if isempty(header)
-				println(io,"getarray($groupname):")
+				println(io,"collect($groupname):")
 			else
-				println(io,"getarray($groupname[\"$header\"]):")
+				println(io,"collect($groupname[\"$header\"]):")
 			end
 			show(io,data)
 			println(io)
@@ -68,7 +68,7 @@ end
 
 
 """
-show_diff(;group1, group2)
+    show_diff(; group1, group2)
 """
 function show_diff(ignorename=Returns(false);kwargs...)
     length(kwargs) == 2 || error("must compare two groups")
@@ -77,7 +77,7 @@ function show_diff(ignorename=Returns(false);kwargs...)
     maxnamewidth = max(textwidth(group1name),textwidth(group2name))
     group1name = lpad(group1name, maxnamewidth)
     group2name = lpad(group2name, maxnamewidth)
-    Docs.Text(io->print_diff(io, kwargs[1], kwargs[2], group1name, group2name, "", ignorename))
+    Docs.Text(sprint(io->print_diff(io, kwargs[1], kwargs[2], group1name, group2name, "", ignorename)))
 end
 
 
