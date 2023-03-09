@@ -91,7 +91,7 @@ macro test_equal(group1,group2,ignorename=:(Returns(false)))
     group1name = lpad(group1name, maxnamewidth)
     group2name = lpad(group2name, maxnamewidth)
     esc(quote
-        let diff = sprint(io->StorageTrees.print_diff(io,$group1, $group2, $group1name, $group2name, "", $ignorename))
+        let diff = sprint(io->SmallZarrGroups.print_diff(io,$group1, $group2, $group1name, $group2name, "", $ignorename))
             print(diff)
             @test isempty(diff) == true
         end

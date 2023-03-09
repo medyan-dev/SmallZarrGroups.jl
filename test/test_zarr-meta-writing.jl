@@ -1,4 +1,4 @@
-using StorageTrees
+using SmallZarrGroups
 using JSON3
 using Test
 using StaticArrays
@@ -47,6 +47,6 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         NamedTuple{(:z,), Tuple{SArray{Tuple{2,3,2},UInt8,3,12}}} => """[["z", "|u1", [2, 3, 2]]]""",
     ]
     for (type, str) in tests
-        @test sprint(StorageTrees.write_type,type) == str
+        @test sprint(SmallZarrGroups.write_type,type) == str
     end
 end

@@ -1,4 +1,4 @@
-using StorageTrees
+using SmallZarrGroups
 using JSON3
 using Test
 using Pkg.Artifacts
@@ -6,7 +6,7 @@ using Pkg.Artifacts
 @testset "compressor edge cases" begin
     # GZip can be loaded but not saved.
     @testset "loading gzip" begin
-        gload = StorageTrees.load_dir(joinpath(artifact"fixture", "test_gzip.zarr"))
+        gload = SmallZarrGroups.load_dir(joinpath(artifact"fixture", "test_gzip.zarr"))
         @test gload["test_gzip"] == 0:9
     end
 
@@ -14,13 +14,13 @@ using Pkg.Artifacts
     @testset "saving gzip" begin
         g = ZGroup()
         data = rand(10,20)
-        g["testarray"] = StorageTrees.ZArray(data; compressor = JSON3.read("""{
+        g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
                 "level": 5,
                 "id": "gzip"
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "compressor gzip not implemented yet, saving data uncompressed") StorageTrees.save_dir(path,g)
-            gload = StorageTrees.load_dir(path)
+            @test_logs (:warn, "compressor gzip not implemented yet, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end
     end
@@ -31,17 +31,17 @@ using Pkg.Artifacts
         g = ZGroup()
         data = rand(10,20)
         data_bytes = rand(UInt8,10)
-        g["testarray"] = StorageTrees.ZArray(data; compressor = JSON3.read("""{
+        g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
             "id": "blosc",
             "shuffle": -1
         }"""))
-        g["testarray_bytes"] = StorageTrees.ZArray(data_bytes; compressor = JSON3.read("""{
+        g["testarray_bytes"] = SmallZarrGroups.ZArray(data_bytes; compressor = JSON3.read("""{
             "id": "blosc",
             "shuffle": -1
         }"""))
         mktempdir() do path
-            StorageTrees.save_dir(path,g)
-            gload = StorageTrees.load_dir(path)
+            SmallZarrGroups.save_dir(path,g)
+            gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
             @test gload["testarray_bytes"] == data_bytes
         end
@@ -53,51 +53,51 @@ using Pkg.Artifacts
     @testset "bad blosc compressor parameters" begin
         g = ZGroup()
         data = rand(10,20)
-        g["testarray"] = StorageTrees.ZArray(data; compressor = JSON3.read("""{
+        g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
                 "clevel": 1000,
                 "id": "blosc"
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "blosc clevel not in 0:9, saving data uncompressed") StorageTrees.save_dir(path,g)
-            gload = StorageTrees.load_dir(path)
+            @test_logs (:warn, "blosc clevel not in 0:9, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end
     end
     @testset "bad zlib compressor parameters" begin
         g = ZGroup()
         data = rand(10,20)
-        g["testarray"] = StorageTrees.ZArray(data; compressor = JSON3.read("""{
+        g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
                 "level": 1000,
                 "id": "zlib"
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "zlib level not in -1:9, saving data uncompressed") StorageTrees.save_dir(path,g)
-            gload = StorageTrees.load_dir(path)
+            @test_logs (:warn, "zlib level not in -1:9, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end
     end
     @testset "bad bz2 compressor parameters" begin
         g = ZGroup()
         data = rand(10,20)
-        g["testarray"] = StorageTrees.ZArray(data; compressor = JSON3.read("""{
+        g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
                 "level": 1000,
                 "id": "bz2"
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "bz2 level not in 1:9, saving data uncompressed") StorageTrees.save_dir(path,g)
-            gload = StorageTrees.load_dir(path)
+            @test_logs (:warn, "bz2 level not in 1:9, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end
     end
     @testset "missing compressor id" begin
         g = ZGroup()
         data = rand(10,20)
-        g["testarray"] = StorageTrees.ZArray(data; compressor = JSON3.read("""{
+        g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
                 "level": 1000
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "compressor id missing, saving data uncompressed") StorageTrees.save_dir(path,g)
-            gload = StorageTrees.load_dir(path)
+            @test_logs (:warn, "compressor id missing, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end
     end
