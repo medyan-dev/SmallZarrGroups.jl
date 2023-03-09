@@ -1,9 +1,5 @@
-module StorageTrees
+module SmallZarrGroups
 
-# An interface for storing a tree of named arrays and attributes to disk with per array compression options.
-# The API is inspired by zarr-python, and uses zarr-python via PythonCall to actually store the arrays to disk.
-
-# This version of the API ZArray doesn't have any type parameters.
 
 using DataStructures: SortedDict, OrderedDict
 using ArgCheck

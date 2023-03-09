@@ -1,11 +1,11 @@
-# StorageTrees (WIP)
+# SmallZarrGroups (WIP)
 
-[![Build Status](https://github.com/medyan-dev/StorageTrees.jl/workflows/CI/badge.svg)](https://github.com/medyan-dev/StorageTrees.jl/actions)
-[![codecov](https://codecov.io/gh/medyan-dev/StorageTrees.jl/branch/main/graph/badge.svg?token=UUOFUEIX8K)](https://codecov.io/gh/medyan-dev/StorageTrees.jl)
+[![Build Status](https://github.com/medyan-dev/SmallZarrGroups.jl/workflows/CI/badge.svg)](https://github.com/medyan-dev/SmallZarrGroups.jl/actions)
+[![codecov](https://codecov.io/gh/medyan-dev/SmallZarrGroups.jl/branch/main/graph/badge.svg?token=UUOFUEIX8K)](https://codecov.io/gh/medyan-dev/SmallZarrGroups.jl)
 
 In memory hierarchy of arrays and attributes loaded from disk or to be saved to disk with [Zarr](https://zarr.readthedocs.io/en/stable/spec/v2.html#).
 
-## Warning: StorageTrees is currently a WIP and its API may drastically change at any time.
+## Warning: SmallZarrGroups is currently a WIP and its API may drastically change at any time.
 
 ## Limitations
 
