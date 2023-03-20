@@ -66,7 +66,7 @@ end
         """
 
     # Sub groups can also be added with setindex!
-    # Note: Unlike setindex with an AbstractArray, 
+    # Note: Unlike setindex! with an AbstractArray, 
     # this won't make a copy of the group, a reference will be added.
     othergroup = ZGroup()
     othergroup["bar"] = [1,2,4]
@@ -116,7 +116,7 @@ end
     @test haskey(zg,"/group1//subgroup2/")
     @test haskey(zg,"group1\\subgroup2")
 
-    # children can be used to get a SortedDict of direct children
+    # children can be used to get a readonly SortedDict of direct children
     @test children(zg) isa SortedDict{String, Union{ZGroup,SmallZarrGroups.ZArray}}
     @test children(zg) == SortedDict([
         "group1" => zg["group1"],
@@ -167,7 +167,7 @@ end
     zg = ZGroup()
     get!(Returns(rand(10)), zg, "random_data")
 
-    # attrs can be used to get an OrderedDict of attributes
+    # attrs can be used to get a mutable view of the OrderedDict of attributes
     @test attrs(zg) isa OrderedDict{String, Any}
     @test isempty(attrs(zg))
     @test attrs(zg["random_data"]) isa OrderedDict{String, Any}
@@ -176,6 +176,7 @@ end
     # Any JSON3 serializable data can be added as an attribute.
     # To be maximally compatible with other zarr readers,
     # it is probably safest to stick to just strings.
+    # Avoid NaN, +-Inf, or very large integers.
     attrs(zg)["time s"] = "10.5"
     attrs(zg["random_data"])["units"] = "meters"
     @test repr("text/plain",zg) == """
