@@ -27,6 +27,7 @@ end
 Add a key and value to the store.
 """
 function write_key(d::DirectoryWriter, key::AbstractString, data)::Nothing
+    @assert !endswith(key, "/")
     filename = joinpath([d.path; split(key,"/")])
     mkpath(dirname(filename))
     open(filename, "w") do f
