@@ -86,7 +86,8 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
                 selectdim(chunk_view, 1, zarr_byte) .= selectdim(array_view, 1, julia_byte)
             end
             compressed_chunkdata = compress(norm_compressor, reshape(shaped_chunkdata,:), zarr_size)
-            chunkname = key_prefix*join(chunktuple, '.')
+            # empty chunk has name "0" this is the case for zero dim arrays
+            chunkname = key_prefix*(isempty(chunktuple) ? "0" : join(chunktuple, '.'))
             write_key(writer, chunkname, compressed_chunkdata)
         end
     end

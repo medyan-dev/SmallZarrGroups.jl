@@ -40,3 +40,21 @@ end
         ])
     end
 end
+
+
+@testset "saving and loading zero dimensional array" begin
+    g = ZGroup()
+    a::Array{Float64, 0} = fill(3.25)
+    b::Array{Int8, 0} = fill(Int8(2))
+    c::Array{UInt8, 0} = fill(UInt8(0xFF))
+    g["a"] = a
+    g["b"] = b
+    g["c"] = c
+    mktempdir() do path
+        SmallZarrGroups.save_dir(path, g)
+        gload = SmallZarrGroups.load_dir(path)
+        @test gload["a"][] == 3.25
+        @test gload["b"][] == 2
+        @test gload["c"][] == 0xFF
+    end
+end

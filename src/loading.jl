@@ -61,7 +61,8 @@ function load_dir(reader::AbstractReader)::ZGroup
                         #shape and chunks have been pre reversed so reverse chunkidx as well.
                         reverse(chunktuple)
                     end
-                    chunkname = arrayname*"/"*join(chunknametuple, metadata.dimension_separator)
+                    # empty chunk has name "0" this is the case for zero dim arrays
+                    chunkname = arrayname*"/"*(isempty(chunknametuple) ? "0" : join(chunknametuple, metadata.dimension_separator))
                     chunknameidx = get(Returns(0), keyname_dict, chunkname)
                     if chunknameidx > 0
                         rawchunkdata = read_key_idx(reader, chunknameidx)
@@ -69,7 +70,8 @@ function load_dir(reader::AbstractReader)::ZGroup
                         chunkstart = chunktuple .* chunks .+ 1
                         chunkstop = min.(chunkstart .+ chunks .- 1, shape)
                         real_chunksize = chunkstop .- chunkstart .+ 1
-                        if zarr_size == 1
+                        if julia_size == 1
+                            @assert zarr_size == 1
                             shaped_chunkdata = reshape(decompressed_chunkdata, chunks...)
                             shaped_array = reinterpret(UInt8, array)
                             array_view = view(shaped_array, (range.(chunkstart, chunkstop))...)
