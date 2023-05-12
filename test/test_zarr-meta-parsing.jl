@@ -20,7 +20,7 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         )
         tests = [
             "S0"=>StaticString{0},
-            "U0"=>SVector{0,Char},
+            "U0"=>SVector{0,SmallZarrGroups.CharUTF32},
             "V0"=>NTuple{0,UInt8},
         ]
         for pair in tests
@@ -145,50 +145,50 @@ const OTHER_ORDER = (ENDIAN_BOM == 0x04030201) ? '>' : '<'
         @test SmallZarrGroups.parse_zarr_type("|V100000") == staticstringtype((NTuple{N,UInt8} where N),100000)
     end
     @testset "static 32bit char vector" begin
-        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U1") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{1,Char},
+        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U1") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{1,SmallZarrGroups.CharUTF32},
             julia_size = 4,
             byteorder = 1:4,
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U2") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{2,Char},
+        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U2") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{2,SmallZarrGroups.CharUTF32},
             julia_size = 8,
             byteorder = 1:8,
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U3") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{3,Char},
+        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U3") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{3,SmallZarrGroups.CharUTF32},
             julia_size = 12,
             byteorder = 1:12,
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U3000") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{3000,Char},
+        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U3000") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{3000,SmallZarrGroups.CharUTF32},
             julia_size = 12000,
             byteorder = 1:12000,
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U1") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{1,Char},
+        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U1") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{1,SmallZarrGroups.CharUTF32},
             julia_size = 4,
             byteorder = 4:-1:1,
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U2") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{2,Char},
+        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U2") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{2,SmallZarrGroups.CharUTF32},
             julia_size = 8,
             byteorder = [4,3,2,1,8,7,6,5],
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U3") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{3,Char},
+        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U3") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{3,SmallZarrGroups.CharUTF32},
             julia_size = 12,
             byteorder = [4,3,2,1,8,7,6,5,12,11,10,9],
             alignment = 2,
         )
-        @test SmallZarrGroups.parse_zarr_type(NATIVE_ORDER*"U5") == SmallZarrGroups.ParsedType(
-            julia_type = SVector{5,Char},
+        @test SmallZarrGroups.parse_zarr_type(OTHER_ORDER*"U5") == SmallZarrGroups.ParsedType(
+            julia_type = SVector{5,SmallZarrGroups.CharUTF32},
             julia_size = 20,
             byteorder = [4,3,2,1,8,7,6,5,12,11,10,9,16,15,14,13,20,19,18,17],
             alignment = 2,
