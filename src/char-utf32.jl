@@ -1,23 +1,28 @@
 """
-A character that matches the python Py_UCS4 bit layout.
-This is utf-32 encoded in native endian.
+Native endian utf-32 character.
+Also represents too high invalid code points from 0x10_FFFF to 0xFFFF_FFFF
+Use `isvalid(c::CharUTF32)` to see if the character can be used in a valid UTF-8 string.
+
+Has a defined fixed total order when compared to `Char`.
+`CharUTF32` with value below or equal to 0x1F_FFFF are converted to `Char` when compared to `Char`.
+`CharUTF32` with value above 0x1F_FFFF cannot be converted to `Char`. They are ordered after all `Char`.
 """
 struct CharUTF32 <: AbstractChar
     value::UInt32
     CharUTF32(value::UInt32) = new(value)
 end
 
-Base.ncodeunits(c::CharUTF32) = 1
-
 function Base.codepoint(c::CharUTF32)
+    # Not throwing errors if the code point is too high.
+    # This enables fallbacks like `isascii` to work correctly.
     # c.value > 0x1F_FFFF && throw(Base.InvalidCharError(c))
     c.value
 end
 
-Base.typemax(::Type{CharUTF32}) = typemax(UInt32)
-Base.typemin(::Type{CharUTF32}) = typemin(UInt32)
+Base.typemax(::Type{CharUTF32}) = CharUTF32(typemax(UInt32))
+Base.typemin(::Type{CharUTF32}) = CharUTF32(typemin(UInt32))
 
-Base.IteratorSize(::Type{CharUTF32}) = HasShape{0}()
+Base.IteratorSize(::Type{CharUTF32}) = Base.HasShape{0}()
 
 Base.isless(x::CharUTF32, y::CharUTF32) = isless(x.value, y.value)
 
