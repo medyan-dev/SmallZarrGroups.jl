@@ -255,6 +255,9 @@ end
     @test repr("text/plain", C32('\u3a2c')) == "SmallZarrGroups.CharUTF32('㨬'): Unicode U+3A2C (category Lo: Letter, other)"
     @test !isascii(C32('\u3a2c'))
     @test isvalid(C32('\u3a2c'))
+    @test repr("text/plain", C32('\udf00')) == "SmallZarrGroups.CharUTF32('\\udf00'): Unicode U+DF00 (category Cs: Other, surrogate)"
+    @test !isascii(C32('\udf00'))
+    @test !isvalid(C32('\udf00'))
     @test repr("text/plain", C32('\U001f428')) == "SmallZarrGroups.CharUTF32('🐨'): Unicode U+1F428 (category So: Symbol, other)"
     @test !isascii(C32('\U001f428'))
     @test isvalid(C32('\U001f428'))
