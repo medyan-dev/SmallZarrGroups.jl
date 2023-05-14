@@ -283,8 +283,8 @@ end
     @test Char(C32(0x1F_FF_FF)) === Char(0x1F_FF_FF)
     @test_throws Base.CodePointError{UInt32}(0x00200000) Char(C32(0x00200000))
     @test_throws Base.CodePointError{UInt32}(0xFFFFFFFF) Char(C32(0xFFFFFFFF))
-    @test String(SA[C32('a'),C32('b')]) == "ab"
-    @test_throws Base.CodePointError{UInt32}(0x00200000) String(SA[C32('a'),C32(0x00200000)])
+    @test String([C32('a'),C32('b')]) == "ab"
+    @test_throws Base.CodePointError{UInt32}(0x00200000) String([C32('a'),C32(0x00200000)])
 end
 
 @testset "total ordering" begin
