@@ -1,4 +1,5 @@
 using SmallZarrGroups
+using StaticArrays
 using DataStructures: SortedDict, OrderedDict
 using Test
 using Pkg.Artifacts
@@ -95,4 +96,27 @@ end
     disk_load_compare(zarr, joinpath(artifact"fixture", "ring_system.zarr"))
     disk_load_compare(zarr, joinpath(artifact"fixture", "ring_system.zarr.zip"))
     # disk_load_compare(zarr, joinpath(@__DIR__,"example_all_sites_context.zarr"))
+end
+
+@testset "zarr-python zero dimensional array compatibility" begin
+    g = ZGroup()
+    a::Array{Float64, 0} = fill(3.25)
+    b::Array{Int8, 0} = fill(Int8(2))
+    c::Array{UInt8, 0} = fill(UInt8(0xFF))
+    g["a"] = a
+    g["b"] = b
+    g["c"] = c
+    mktempdir() do path
+        SmallZarrGroups.save_dir(path, g)
+        disk_load_compare(zarr, path)
+    end
+end
+
+@testset "UTF32 SVector zarr-python compatibility" begin
+    g = ZGroup()
+    g["a"] = [SA[SmallZarrGroups.CharUTF32('🐨'),SmallZarrGroups.CharUTF32('🐨')]]
+    mktempdir() do path
+        SmallZarrGroups.save_dir(path, g)
+        disk_load_compare(zarr, path)
+    end
 end

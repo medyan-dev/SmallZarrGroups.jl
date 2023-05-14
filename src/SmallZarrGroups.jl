@@ -10,6 +10,8 @@ export ZGroup
 export attrs
 export children
 
+include("char-utf32.jl")
+
 include("ZArray.jl")
 include("ZGroup.jl")
 

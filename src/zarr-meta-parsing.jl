@@ -141,12 +141,12 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
         @argcheck (byteorder in "<>") || iszero(numthings)
         in_native_order = (byteorder == NATIVE_ORDER) || iszero(numthings)
         _byteorder = if in_native_order
-            collect(Iterators.flatten((4+4i,3+4i,2+4i,1+4i) for i in 0:numthings-1))
-        else
             collect(1:numthings*4)
+        else
+            collect(Iterators.flatten((4+4i,3+4i,2+4i,1+4i) for i in 0:numthings-1))
         end
         return ParsedType(;
-            julia_type = SVector{numthings, Char},
+            julia_type = SVector{numthings, CharUTF32},
             julia_size = numthings*4,
             byteorder = _byteorder,
             alignment = iszero(numthings) ? 0 : 2,

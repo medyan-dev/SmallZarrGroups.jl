@@ -27,7 +27,7 @@ const ZDataTypes = Union{
     ComplexF32,
     ComplexF64,
     StaticString,
-    SVector{N, Char} where N,
+    SVector{N, CharUTF32} where N,
     NTuple{N, UInt8} where N,
 }
 
