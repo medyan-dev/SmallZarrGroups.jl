@@ -47,7 +47,7 @@ end
 
 
 struct BufferedZipReader <: AbstractReader
-    zipfile::ZipBufferReader
+    zipfile::ZipBufferReader{Vector{UInt8}}
     function BufferedZipReader(path)
         @argcheck isfile(path)
         new(ZipBufferReader(read(path)))
