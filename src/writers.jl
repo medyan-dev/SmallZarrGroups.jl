@@ -3,7 +3,7 @@
 # Doesn't support deleting, or changing data already written.
 
 using ArgCheck
-using ZipFile
+using ZipArchives
 
 
 abstract type AbstractWriter end
@@ -41,7 +41,7 @@ Write to an in memory zipfile, that gets saved to disk on close.
 This writer will overwrite any existing file at `path`
 """
 struct BufferedZipWriter <: AbstractWriter
-    zipfile::ZipFile.Writer
+    zipfile::ZipWriter{IOBuffer}
     path::String
     iobuffer::IOBuffer
     function BufferedZipWriter(path)
@@ -49,14 +49,13 @@ struct BufferedZipWriter <: AbstractWriter
         @argcheck !isdirpath(path)
         mkpath(dirname(path))
         iobuffer = IOBuffer()
-        zipfile = ZipFile.Writer(iobuffer)
+        zipfile = ZipWriter(iobuffer)
         new(zipfile, abspath(path), iobuffer)
     end
 end
 
 function write_key(d::BufferedZipWriter, key::AbstractString, data)::Nothing
-    f = ZipFile.addfile(d.zipfile, key);
-    write(f, data)
+    zip_writefile(d.zipfile, key, data)
     nothing
 end
 
@@ -64,6 +63,5 @@ function closewriter(d::BufferedZipWriter)
     close(d.zipfile)
     open(d.path, "w") do f
         write(f, take!(d.iobuffer))
-        close(d.iobuffer)
     end
 end

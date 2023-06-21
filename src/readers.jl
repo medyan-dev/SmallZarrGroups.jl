@@ -3,7 +3,7 @@
 # Doesn't support deleting, or changing data already written.
 
 using ArgCheck
-using ZipFile
+using ZipArchives
 
 
 abstract type AbstractReader end
@@ -47,19 +47,17 @@ end
 
 
 struct BufferedZipReader <: AbstractReader
-    zipfile::ZipFile.Reader
+    zipfile::ZipBufferReader{Vector{UInt8}}
     function BufferedZipReader(path)
         @argcheck isfile(path)
-        io = IOBuffer(read(path, String))
-        zipfile = ZipFile.Reader(io)
-        new(zipfile)
+        new(ZipBufferReader(read(path)))
     end
 end
 
 function key_names(d::BufferedZipReader)::Vector{String}
-    return map(f->f.name, d.zipfile.files)
+    return zip_names(d.zipfile)
 end
 
 function read_key_idx(d::BufferedZipReader, idx::Int)::Vector{UInt8}
-    read(d.zipfile.files[idx])
+    zip_readentry(d.zipfile, idx)
 end

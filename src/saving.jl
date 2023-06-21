@@ -28,13 +28,13 @@ function _save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray
     if isempty(attrs(z))
         return
     end
-    write_key(writer, key_prefix*".zattrs", sprint(io->JSON3.pretty(io,attrs(z); allow_inf=true)))
+    write_key(writer, key_prefix*".zattrs", codeunits(sprint(io->JSON3.pretty(io,attrs(z); allow_inf=true))))
     return
 end
 
 function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
     group_key = key_prefix*".zgroup"
-    write_key(writer, group_key, "{\"zarr_format\":2}")
+    write_key(writer, group_key, codeunits("{\"zarr_format\":2}"))
     _save_attrs(writer, key_prefix, z)
     for (k,v) in pairs(children(z))
         @argcheck !isempty(k)
@@ -93,7 +93,7 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
     end
     # store array meta data
     write_key(writer, key_prefix*".zarray",
-        """
+        codeunits("""
         {
             "chunks": [$(join(z.chunks, ", "))],
             "compressor": $(JSON3.write(norm_compressor; allow_inf=true)),
@@ -104,6 +104,6 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
             "shape": [$(join(shape, ", "))],
             "zarr_format": 2
         }
-        """
+        """)
     )
 end
