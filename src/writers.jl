@@ -41,7 +41,7 @@ Write to an in memory zipfile, that gets saved to disk on close.
 This writer will overwrite any existing file at `path`
 """
 struct BufferedZipWriter <: AbstractWriter
-    zipfile::ZipWriter
+    zipfile::ZipWriter{IOBuffer}
     path::String
     iobuffer::IOBuffer
     function BufferedZipWriter(path)
