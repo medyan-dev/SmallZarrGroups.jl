@@ -46,18 +46,17 @@ function read_key_idx(d::DirectoryReader, idx::Int)::Vector{UInt8}
 end
 
 
-struct BufferedZipReader <: AbstractReader
+struct ZarrZipReader <: AbstractReader
     zipfile::ZipBufferReader{Vector{UInt8}}
-    function BufferedZipReader(path)
-        @argcheck isfile(path)
-        new(ZipBufferReader(read(path)))
+    function ZarrZipReader(buffer::Vector{UInt8})
+        new(ZipBufferReader(buffer))
     end
 end
 
-function key_names(d::BufferedZipReader)::Vector{String}
+function key_names(d::ZarrZipReader)::Vector{String}
     return zip_names(d.zipfile)
 end
 
-function read_key_idx(d::BufferedZipReader, idx::Int)::Vector{UInt8}
+function read_key_idx(d::ZarrZipReader, idx::Int)::Vector{UInt8}
     zip_readentry(d.zipfile, idx)
 end
