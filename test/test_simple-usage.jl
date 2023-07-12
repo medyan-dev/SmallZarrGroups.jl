@@ -265,3 +265,35 @@ end
         ])
     end
 end
+
+@testset "saving and loading a in memory zip file" begin
+    g = ZGroup()
+    data1 = rand(10,20)
+    g["testarray1"] = data1
+    attrs(g["testarray1"])["foo"] = "bar1"
+    data2 = rand(Int,20)
+    g["testarray2"] = data2
+    data3 = rand(UInt8,20)
+    g["testgroup1"] = ZGroup()
+    g["testgroup1"]["testarray1"] = data3
+    attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
+    io = IOBuffer()
+    writer = SmallZarrGroups.ZarrZipWriter(io)
+    SmallZarrGroups.save_dir(writer, g)
+    SmallZarrGroups.closewriter(writer)
+    data = take!(io)
+    # data now contains the data of a zipfile
+    # it could be saved to disk, sent to another process, or loaded back as a ZGroup.
+    gload = SmallZarrGroups.load_dir(SmallZarrGroups.ZarrZipReader(data))
+    @test collect(gload["testarray1"]) == data1
+    @test attrs(gload["testarray1"]) == OrderedDict([
+        "foo" => "bar1",
+    ])
+    @test gload["testarray2"] == data2
+    @test attrs(gload["testarray2"]) == OrderedDict([])
+    @test attrs(gload) == OrderedDict([])
+    @test gload["testgroup1/testarray1"] == data3
+    @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
+        "foo" => "bar3",
+    ])
+end
