@@ -40,28 +40,19 @@ end
 Write to an in memory zipfile, that gets saved to disk on close.
 This writer will overwrite any existing file at `path`
 """
-struct BufferedZipWriter <: AbstractWriter
-    zipfile::ZipWriter{IOBuffer}
-    path::String
-    iobuffer::IOBuffer
-    function BufferedZipWriter(path)
-        @argcheck !isdir(path)
-        @argcheck !isdirpath(path)
-        mkpath(dirname(path))
-        iobuffer = IOBuffer()
-        zipfile = ZipWriter(iobuffer)
-        new(zipfile, abspath(path), iobuffer)
+struct ZarrZipWriter{IO_TYPE<:IO} <: AbstractWriter
+    zipfile::ZipWriter{IO_TYPE}
+    function ZarrZipWriter(io)
+        new{typeof(io)}(ZipWriter(io))
     end
 end
 
-function write_key(d::BufferedZipWriter, key::AbstractString, data)::Nothing
+function write_key(d::ZarrZipWriter, key::AbstractString, data)::Nothing
     zip_writefile(d.zipfile, key, data)
     nothing
 end
 
-function closewriter(d::BufferedZipWriter)
+function closewriter(d::ZarrZipWriter)
     close(d.zipfile)
-    open(d.path, "w") do f
-        write(f, take!(d.iobuffer))
-    end
+    nothing
 end

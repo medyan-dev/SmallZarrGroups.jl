@@ -1,17 +1,27 @@
 
+
 """
 If dirpath ends in .zip, save to a zip file, otherwise save to a directory.
+
+Note this will delete pre existing data at dirpath
 """
 function save_dir(dirpath::AbstractString, z::ZGroup)
-    writer = if endswith(dirpath, ".zip")
-        BufferedZipWriter(dirpath)
+    if endswith(dirpath, ".zip")
+        @argcheck !isdir(dirpath)
+        mkpath(dirname(dirpath))
+        open(dirpath; write=true) do io
+            writer = ZarrZipWriter(io)
+            try
+                save_dir(writer, z)
+            finally
+                closewriter(writer)
+            end
+        end
     else
-        DirectoryWriter(dirpath)
+        save_dir(DirectoryWriter(dirpath), z)
     end
-    save_dir(writer, z)
-    closewriter(writer)
+    nothing
 end
-
 
 """
 Note this will delete pre existing data at dirpath
