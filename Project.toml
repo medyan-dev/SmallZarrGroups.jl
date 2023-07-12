@@ -1,7 +1,7 @@
 name = "SmallZarrGroups"
 uuid = "d423b6e5-1c84-4ae2-8d2d-b903aee15ac7"
 authors = ["nhz2 <nhz2@cornell.edu>"]
-version = "0.6.1"
+version = "0.6.2"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
