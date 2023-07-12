@@ -266,7 +266,7 @@ end
     end
 end
 
-@testset "saving and loading a in memory zip file" begin
+@testset "saving and loading an in memory zip file" begin
     g = ZGroup()
     data1 = rand(10,20)
     g["testarray1"] = data1
