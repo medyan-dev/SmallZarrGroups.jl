@@ -76,15 +76,15 @@ using Pkg.Artifacts
             @test gload["testarray"] == data
         end
     end
-    @testset "bad bz2 compressor parameters" begin
+    @testset "bz2 compressor not implemented" begin
         g = ZGroup()
         data = rand(10,20)
         g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
-                "level": 1000,
+                "level": 5,
                 "id": "bz2"
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "bz2 level not in 1:9, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            @test_logs (:warn, "compressor bz2 not implemented yet, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
             gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end

@@ -43,15 +43,21 @@ function _save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray
 end
 
 function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
-    group_key = key_prefix*".zgroup"
-    write_key(writer, group_key, codeunits("{\"zarr_format\":2}"))
-    _save_attrs(writer, key_prefix, z)
+    group_key = key_prefix*"zarr.json"
+    io = IOBuffer()
+    write(io, "{\"zarr_format\":3, \"node_type\":\"group\"")
+    if !isempty(attrs(z))
+        write(io, ", \"attributes\":\n")
+        JSON3.pretty(io, attrs(z); allow_inf=true)
+    end
+    write(io, "}")
+    write_key(writer, group_key, codeunits(String(take!(io))))
     for (k,v) in pairs(children(z))
         @argcheck !isempty(k)
-        @argcheck !endswith(k, ".")
+        @argcheck !all(==(UInt8('.')), codeunits(k))
         @argcheck !startswith(k, "__")
-        @argcheck '/' ∉ k
-        @argcheck '\\' ∉ k
+        @argcheck UInt8('/') ∉ codeunits(k)
+        @argcheck UInt8(0) ∉ codeunits(k)
         @argcheck k != "zarr.json"
         child_key_prefix = String(key_prefix*k*"/")
         if v isa ZGroup
@@ -66,14 +72,26 @@ end
 
 
 function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
-    _save_attrs(writer, key_prefix, z)
-    # Get type info
     data = getarray(z)
-    dtype_str::String = sprint(write_type, eltype(data))
-    dtype::ParsedType = parse_zarr_type(JSON3.read(dtype_str))
-    @assert dtype.julia_type == eltype(data)
+    array_metadata = OrderedDict{String,Any}()
+    array_metadata["zarr_format"] = 3
+    array_metadata["node_type"] = "array"
+    array_metadata["shape"] = collect(size(data))
+    # TODO optional dimension_names
+    array_metadata["data_type"] = zarr_data_type(eltype(data))
+    array_metadata["fill_value"] = zarr_fill_value(eltype(data))
+    array_metadata["chunk_grid"] = [
+        "name" => "regular",
+        "configuration" => ["chunk_shape" => z.chunks]
+    ]
+    array_metadata["chunk_key_encoding"] = ["name" => "default"]
+    array_metadata["codecs"] = [
+        
+    ]
+    if !isempty(attrs(z))
+        array_metadata["attributes"] = attrs(z)
+    end
     shape = size(data)
-    zarr_size = dtype.zarr_size
     norm_compressor = normalize_compressor(z.compressor)
     if zarr_size != 0 && !any(iszero, shape)
         chunks = Tuple(z.chunks)
@@ -98,10 +116,11 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
             end
             compressed_chunkdata = compress(norm_compressor, reshape(shaped_chunkdata,:), zarr_size)
             # empty chunk has name "0" this is the case for zero dim arrays
-            chunkname = key_prefix*(isempty(chunktuple) ? "0" : join(chunktuple, '.'))
+            chunkname = key_prefix*"c"*join('/'.*chunktuple)
             write_key(writer, chunkname, compressed_chunkdata)
         end
     end
+
     # store array meta data
     write_key(writer, key_prefix*".zarray",
         codeunits("""

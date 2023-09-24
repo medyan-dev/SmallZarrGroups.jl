@@ -7,7 +7,7 @@ const BLOSC_MAX_OVERHEAD = 16
 # Blosc is currently limited to 32-bit buffer sizes (Blosc/c-blosc#67)
 const BLOSC_MAX_BUFFERSIZE = typemax(Cint) - BLOSC_MAX_OVERHEAD
 
-import TranscodingStreams, CodecZlib, CodecBzip2
+import TranscodingStreams, CodecZlib
 
 """
 Return the uncompressed data.
@@ -34,8 +34,6 @@ function decompress!(buffer::Vector{UInt8}, src::Vector{UInt8}, metadata::Parsed
         TranscodingStreams.transcode(CodecZlib.ZlibDecompressor, src)
     elseif id == "gzip"
         TranscodingStreams.transcode(CodecZlib.GzipDecompressor, src)
-    elseif id == "bz2"
-        TranscodingStreams.transcode(CodecBzip2.Bzip2Decompressor, src)
     else
         error("$(metadata.compressor.id) compressor not supported yet")
     end
@@ -69,13 +67,6 @@ function normalize_compressor(compressor::JSON3.Object)::Union{Nothing, JSON3.Ob
     if compressor.id == "zlib"
         if get(Returns(1), compressor, "level") ∉ -1:9
             @warn "zlib level not in -1:9, saving data uncompressed"
-            return nothing
-        end
-        return compressor
-    end
-    if compressor.id == "bz2"
-        if get(Returns(1), compressor, "level") ∉ 1:9
-            @warn "bz2 level not in 1:9, saving data uncompressed"
             return nothing
         end
         return compressor
@@ -127,15 +118,6 @@ function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Ve
             TranscodingStreams.transcode(zlib_codec, src)
         finally
             TranscodingStreams.finalize(zlib_codec)
-        end
-    elseif compressor.id == "bz2"
-        blocksize100k::Int = get(Returns(1), compressor, "level")
-        bz2_codec = CodecBzip2.Bzip2Compressor(;blocksize100k)
-        TranscodingStreams.initialize(bz2_codec)
-        try
-            TranscodingStreams.transcode(bz2_codec, src)
-        finally
-            TranscodingStreams.finalize(bz2_codec)
         end
     else
         # This should be unreachable because 

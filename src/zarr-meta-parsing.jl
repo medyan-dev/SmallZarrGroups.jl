@@ -1,8 +1,6 @@
 # Parse zarr array meta data descriptions.
 
 using ArgCheck
-using StaticArraysCore
-using StaticStrings
 import JSON3
 import Base64
 
@@ -53,17 +51,14 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
     byteorder = typestr[1]
     typechar = typestr[2]
     # note need to strip non digits because of datetime units
-    # This is usually the number of bytes, but if typechar is 'U' it is number of bytes/4 for some stupid reason.
-    numthings = parse(Int,rstrip(!isdigit, typestr[3:end]))
-    units = lstrip(isdigit, typestr[3:end])[begin+1:end-1]
+    # This is the number of bytes
+    numbytes = parse(Int,rstrip(!isdigit, typestr[3:end]))
     @argcheck byteorder in "<>|"
-    @argcheck typechar in "biufcmMSUV"
-    @argcheck numthings ≥ 0
-    @argcheck (typechar in "mM") ⊻ isempty(units)
-    @argcheck units in ("","Y","M","W","D","h","m","s","ms","μs","us","ns","ps","fs","as")
+    @argcheck typechar in "biufcV"
+    @argcheck numbytes ≥ 0
     # actual number of bytes
     if typechar == 'b'
-        @argcheck numthings == 1
+        @argcheck numbytes == 1
         return ParsedType(;
             julia_type = Bool,
             julia_size = 1,
@@ -71,155 +66,61 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
             alignment = 0,
         )
     elseif typechar == 'i'
-        @argcheck numthings in 1:8
-        @argcheck count_ones(numthings) == 1
-        @argcheck (byteorder in "<>") || isone(numthings)
-        in_native_order = (byteorder == NATIVE_ORDER) || isone(numthings)
-        tz = trailing_zeros(numthings)
+        @argcheck numbytes in 1:8
+        @argcheck count_ones(numbytes) == 1
+        @argcheck (byteorder in "<>") || isone(numbytes)
+        in_native_order = (byteorder == NATIVE_ORDER) || isone(numbytes)
+        tz = trailing_zeros(numbytes)
         return ParsedType(;
             julia_type = (Int8, Int16, Int32, Int64)[tz+1],
-            julia_size = numthings,
-            byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
+            julia_size = numbytes,
+            byteorder = in_native_order ? (1:numbytes) : (numbytes:-1:1),
             alignment = ALIGNMENT_LOOKUP[tz+1],
         )
     elseif typechar == 'u'
-        @argcheck numthings in 1:8
-        @argcheck count_ones(numthings) == 1
-        @argcheck (byteorder in "<>") || isone(numthings)
-        in_native_order = (byteorder == NATIVE_ORDER) || isone(numthings)
-        tz = trailing_zeros(numthings)
+        @argcheck numbytes in 1:8
+        @argcheck count_ones(numbytes) == 1
+        @argcheck (byteorder in "<>") || isone(numbytes)
+        in_native_order = (byteorder == NATIVE_ORDER) || isone(numbytes)
+        tz = trailing_zeros(numbytes)
         return ParsedType(;
             julia_type = (UInt8, UInt16, UInt32, UInt64)[tz+1],
-            julia_size = numthings,
-            byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
+            julia_size = numbytes,
+            byteorder = in_native_order ? (1:numbytes) : (numbytes:-1:1),
             alignment = ALIGNMENT_LOOKUP[tz+1],
         )
     elseif typechar == 'f'
-        @argcheck numthings in 2:8
-        @argcheck count_ones(numthings) == 1
+        @argcheck numbytes in 2:8
+        @argcheck count_ones(numbytes) == 1
         @argcheck byteorder in "<>"
         in_native_order = (byteorder == NATIVE_ORDER)
-        tz = trailing_zeros(numthings)
+        tz = trailing_zeros(numbytes)
         return ParsedType(;
             julia_type = (Float16, Float32, Float64)[tz],
-            julia_size = numthings,
-            byteorder = in_native_order ? (1:numthings) : (numthings:-1:1),
+            julia_size = numbytes,
+            byteorder = in_native_order ? (1:numbytes) : (numbytes:-1:1),
             alignment = ALIGNMENT_LOOKUP[tz+1],
         )
     elseif typechar == 'c'
-        @argcheck numthings in 4:16
-        @argcheck count_ones(numthings) == 1
+        @argcheck numbytes in 8:16
+        @argcheck count_ones(numbytes) == 1
         @argcheck byteorder in "<>"
         in_native_order = (byteorder == NATIVE_ORDER)
-        tz = trailing_zeros(numthings)
+        tz = trailing_zeros(numbytes)
         return ParsedType(;
-            julia_type = (ComplexF16, ComplexF32, ComplexF64)[tz - 1],
-            julia_size = numthings,
-            byteorder = in_native_order ? (1:numthings) : [numthings÷2:-1:1; numthings:-1:numthings÷2+1;],
+            julia_type = (ComplexF32, ComplexF64)[tz - 2],
+            julia_size = numbytes,
+            byteorder = in_native_order ? (1:numbytes) : [numbytes÷2:-1:1; numbytes:-1:numbytes÷2+1;],
             alignment = ALIGNMENT_LOOKUP[tz],
-        )
-    elseif (typechar == 'm') | (typechar == 'M')
-        @argcheck byteorder in "<>"
-        @argcheck numthings == 8
-        silence_warnings || @warn "timedelta64 and datatime64 not supported, converting to Int64"
-        in_native_order = (byteorder == NATIVE_ORDER)
-        tz = trailing_zeros(numthings)
-        return ParsedType(;
-            julia_type = Int64,
-            julia_size = 8,
-            byteorder = in_native_order ? (1:8) : (8:-1:1),
-            alignment = ALIGNMENT_LOOKUP[4],
-        )
-    elseif typechar == 'S'
-        return ParsedType(;
-            julia_type = StaticString{numthings},
-            julia_size = numthings,
-            byteorder = 1:numthings,
-            alignment = 0,
-        )
-    elseif typechar == 'U'
-        @argcheck (byteorder in "<>") || iszero(numthings)
-        in_native_order = (byteorder == NATIVE_ORDER) || iszero(numthings)
-        _byteorder = if in_native_order
-            collect(1:numthings*4)
-        else
-            collect(Iterators.flatten((4+4i,3+4i,2+4i,1+4i) for i in 0:numthings-1))
-        end
-        return ParsedType(;
-            julia_type = SVector{numthings, CharUTF32},
-            julia_size = numthings*4,
-            byteorder = _byteorder,
-            alignment = iszero(numthings) ? 0 : 2,
         )
     elseif typechar == 'V'
         return ParsedType(;
-            julia_type = NTuple{numthings, UInt8},
-            julia_size = numthings,
-            byteorder = 1:numthings,
+            julia_type = NTuple{numbytes, UInt8},
+            julia_size = numbytes,
+            byteorder = 1:numbytes,
             alignment = 0,
         )
     end
-end
-
-"""
-Parse a structured zarr typestr
-"""
-function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
-    current_byte = 0
-    max_alignment = 0
-    byteorder = Int[]
-    feldnames = Symbol[]
-    feldtypes = Type[]
-    for feld in descr
-        name::String = feld[1]
-        parsed_type::ParsedType = if length(feld) == 3
-            # Parse static array field.
-            @argcheck feld[3] isa JSON3.Array
-            shape::Vector{Int} = collect(Int,feld[3])
-            el_type = parse_zarr_type(feld[2]; silence_warnings)
-            el_size = el_type.julia_size
-            zarr_el_size = el_type.zarr_size
-            array_byteorder = Vector{Int}(undef, el_type.zarr_size*prod(shape))
-            # This thing converts a row major linear index to a column major index.
-            # This is needed because numpy static arrays are always in row major order
-            # and Julia static arrays are always in column major order.
-            converter_thing = PermutedDimsArray(LinearIndices(Tuple(shape)),reverse(1:length(shape)))
-            for i in 1:length(converter_thing)
-                column_major_idx_0::Int = converter_thing[i] - 1
-                local byte_offset::Int = column_major_idx_0*el_size
-                array_byteorder[(1+zarr_el_size*(i-1)):(zarr_el_size*i)] .= el_type.byteorder .+ byte_offset
-            end
-            ParsedType(;
-                julia_type = SArray{Tuple{shape...,}, el_type.julia_type, length(shape), prod(shape)},
-                julia_size = el_size*prod(shape),
-                zarr_size = length(byteorder),
-                byteorder = array_byteorder,
-                alignment = el_type.alignment,
-            )
-        elseif length(feld) == 2
-            parse_zarr_type(feld[2]; silence_warnings)
-        else
-            error("field must have 2 or three elements")
-        end
-        push!(feldnames, Symbol(name))
-        push!(feldtypes, parsed_type.julia_type)
-        alignment = parsed_type.alignment
-        max_alignment = max(max_alignment, alignment)
-        num_padding = 2^alignment - mod1(current_byte,2^alignment)
-        current_byte += num_padding
-        @assert iszero(mod(current_byte, 2^alignment))
-        append!(byteorder, parsed_type.byteorder .+ current_byte)
-        current_byte += parsed_type.julia_size
-    end
-    num_padding = 2^max_alignment - mod1(current_byte,2^max_alignment)
-    current_byte += num_padding
-    ParsedType(;
-        julia_type = NamedTuple{(feldnames...,), Tuple{feldtypes...,}},
-        julia_size = current_byte,
-        zarr_size = length(byteorder),
-        byteorder,
-        alignment = max_alignment,
-    )
 end
 
 

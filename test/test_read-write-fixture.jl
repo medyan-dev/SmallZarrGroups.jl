@@ -1,5 +1,4 @@
 using SmallZarrGroups
-using StaticArrays
 using DataStructures: SortedDict, OrderedDict
 using Test
 using Pkg.Artifacts
@@ -81,18 +80,17 @@ function compare_jl_py_zarray(jl_zarray::SmallZarrGroups.ZArray, py_zarray)
         end
     end
     if ok
-        if eltype(py_data) <: PythonCall.Utils.StaticString{UInt32}
-            @test rstrip.(String.(jl_zarray.data), '\0') == rstrip.(String.(py_data), '\0')
-        else
-            @test isequal(py_data,jl_zarray.data)
-        end
+        @test isequal(py_data,jl_zarray.data)
     end
 end
 
 
 @testset "read fixture data and compare to zarr-python" begin
-    disk_load_compare(zarr, joinpath(artifact"fixture", "fixture"))
-    disk_load_compare(zarr, joinpath(artifact"fixture", "fixture.zip"))
+    # @info "fixture"
+    # disk_load_compare(zarr, joinpath(artifact"fixture", "fixture"))
+    @info "fixture2.zip"
+    disk_load_compare(zarr, joinpath(@__DIR__, "fixture2.zip"))
+    @info "ring_system.zarr"
     disk_load_compare(zarr, joinpath(artifact"fixture", "ring_system.zarr"))
     disk_load_compare(zarr, joinpath(artifact"fixture", "ring_system.zarr.zip"))
     # disk_load_compare(zarr, joinpath(@__DIR__,"example_all_sites_context.zarr"))
@@ -106,15 +104,6 @@ end
     g["a"] = a
     g["b"] = b
     g["c"] = c
-    mktempdir() do path
-        SmallZarrGroups.save_dir(path, g)
-        disk_load_compare(zarr, path)
-    end
-end
-
-@testset "UTF32 SVector zarr-python compatibility" begin
-    g = ZGroup()
-    g["a"] = [SA[SmallZarrGroups.CharUTF32('🐨'),SmallZarrGroups.CharUTF32('🐨')]]
     mktempdir() do path
         SmallZarrGroups.save_dir(path, g)
         disk_load_compare(zarr, path)

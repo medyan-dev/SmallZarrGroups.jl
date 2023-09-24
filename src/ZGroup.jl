@@ -10,7 +10,7 @@ Base.@kwdef struct ZGroup
 end
 
 """
-Return the mutable SortedDict of attributes.
+Return the mutable OrderedDict of attributes.
 """
 attrs(d::ZGroup) = d.attrs
 
