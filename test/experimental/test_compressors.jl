@@ -4,13 +4,8 @@ using Test
 using Pkg.Artifacts
 
 @testset "compressor edge cases" begin
-    # GZip can be loaded but not saved.
-    @testset "loading gzip" begin
-        gload = SmallZarrGroups.load_dir(joinpath(artifact"fixture", "test_gzip.zarr"))
-        @test gload["test_gzip"] == 0:9
-    end
 
-    # GZip can be loaded but will save as uncompressed.
+    # GZip will save as uncompressed.
     @testset "saving gzip" begin
         g = ZGroup()
         data = rand(10,20)
@@ -76,15 +71,15 @@ using Pkg.Artifacts
             @test gload["testarray"] == data
         end
     end
-    @testset "bad bz2 compressor parameters" begin
+    @testset "bz2 compressor not implemented" begin
         g = ZGroup()
         data = rand(10,20)
         g["testarray"] = SmallZarrGroups.ZArray(data; compressor = JSON3.read("""{
-                "level": 1000,
+                "level": 2,
                 "id": "bz2"
             }"""))
         mktempdir() do path
-            @test_logs (:warn, "bz2 level not in 1:9, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
+            @test_logs (:warn, "compressor bz2 not implemented yet, saving data uncompressed") SmallZarrGroups.save_dir(path,g)
             gload = SmallZarrGroups.load_dir(path)
             @test gload["testarray"] == data
         end
