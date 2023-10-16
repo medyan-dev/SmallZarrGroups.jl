@@ -1,6 +1,5 @@
 using SmallZarrGroups
 using DataStructures: SortedDict, OrderedDict
-using StaticArrays
 using Test
 
 #These are tests for experimental features that are not stable API yet

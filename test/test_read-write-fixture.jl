@@ -1,5 +1,4 @@
 using SmallZarrGroups
-using StaticArrays
 using DataStructures: SortedDict, OrderedDict
 using Test
 using Pkg.Artifacts
