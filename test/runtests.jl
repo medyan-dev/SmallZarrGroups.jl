@@ -3,7 +3,6 @@ using Random
 
 Random.seed!(1234)
 
-include("test_char-utf32.jl")
 include("test_zarr-meta-parsing.jl")
 include("test_zarr-meta-writing.jl")
 include("test_simple-usage.jl")

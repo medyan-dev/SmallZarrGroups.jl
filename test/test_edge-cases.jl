@@ -1,6 +1,5 @@
 using SmallZarrGroups
 using DataStructures: SortedDict, OrderedDict
-using StaticArrays
 using Test
 
 @testset "saving and loading attrs on root" begin
