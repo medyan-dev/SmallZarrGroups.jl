@@ -12,7 +12,7 @@ In memory hierarchy of arrays and attributes loaded from disk or to be saved to 
 1. If you need to store huge datasets that cannot fit uncompressed in memory consider using https://github.com/JuliaIO/HDF5.jl or https://github.com/JuliaIO/Zarr.jl
 
 1. If you just want to serialize arbitrary Julia data consider using https://github.com/JuliaIO/JLD2.jl or https://github.com/invenia/JLSO.jl
-2. Numpy datetime64 (“M”) and timedelta64 (“m”) data types are read as Int64.
+2. Only Numpy types "b i u f c V" are supported.
 3. Zarr filters are not supported.
 
 ## Overview

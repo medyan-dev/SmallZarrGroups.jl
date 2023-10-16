@@ -111,12 +111,3 @@ end
         disk_load_compare(zarr, path)
     end
 end
-
-@testset "UTF32 SVector zarr-python compatibility" begin
-    g = ZGroup()
-    g["a"] = [SA[SmallZarrGroups.CharUTF32('🐨'),SmallZarrGroups.CharUTF32('🐨')]]
-    mktempdir() do path
-        SmallZarrGroups.save_dir(path, g)
-        disk_load_compare(zarr, path)
-    end
-end

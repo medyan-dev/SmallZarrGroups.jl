@@ -1,5 +1,4 @@
-using StaticArraysCore
-using StaticStrings
+
 
 const DEFAULT_COMPRESSOR = JSON3.read("""{
         "blocksize": 0,
@@ -26,20 +25,13 @@ const ZDataTypes = Union{
     ComplexF16,
     ComplexF32,
     ComplexF64,
-    StaticString,
-    SVector{N, CharUTF32} where N,
     NTuple{N, UInt8} where N,
 }
 
 function isvalidtype(T::Type)::Bool
     isbitstype(T) && (
-        (T <: ZDataTypes) ||
-        (T <: NamedTuple) && all(_isvalidfieldtype, fieldtypes(T))
+        (T <: ZDataTypes)
     )
-end
-
-function _isvalidfieldtype(T::Type)::Bool
-    isvalidtype(T) || (T <: SArray) && isvalidtype(eltype(T))
 end
 
 """
