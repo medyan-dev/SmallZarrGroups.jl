@@ -7,28 +7,38 @@ Note this will delete pre existing data at dirpath
 """
 function save_dir(dirpath::AbstractString, z::ZGroup)
     if endswith(dirpath, ".zip")
-        @argcheck !isdir(dirpath)
-        mkpath(dirname(dirpath))
-        open(dirpath; write=true) do io
-            writer = ZarrZipWriter(io)
-            try
-                save_dir(writer, z)
-            finally
-                closewriter(writer)
-            end
-        end
+        save_zip(dirpath, z)
     else
         save_dir(DirectoryWriter(dirpath), z)
     end
     nothing
 end
-
-"""
-Note this will delete pre existing data at dirpath
-"""
 function save_dir(writer::AbstractWriter, z::ZGroup)
     # TODO add something to prevent loops
     _save_zgroup(writer, "", z::ZGroup)
+end
+
+"""
+    save_zip(filename::AbstractString, z::ZGroup)
+    save_zip(io::IO, z::ZGroup)
+
+Save data in a file `filename` or an `io` in ZipStore format.
+Note this will delete pre existing data in `filename`.
+The `io` passed to this function must be empty.
+This function will not close `io`.
+"""
+function save_zip(filename::AbstractString, z::ZGroup)::Nothing
+    open(filename; write=true) do io
+        save_zip(io, z)
+    end
+end
+function save_zip(io::IO, z::ZGroup)::Nothing
+    writer = ZarrZipWriter(io)
+    try
+        save_dir(writer, z)
+    finally
+        closewriter(writer)
+    end
 end
 
 """
