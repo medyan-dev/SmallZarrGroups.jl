@@ -239,6 +239,75 @@ end
     attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
     mktempdir() do path
         # Note this will delete pre existing data at "path/test.zip".
+        # This zip file can be read by zarr-python.
+        SmallZarrGroups.save_zip(joinpath(path,"test.zip"), g)
+        @test isfile(joinpath(path,"test.zip"))
+        # load_zip can load zip files saved by save_zip, or saved by zarr-python.
+        # It can also load zip files created by zipping a zarr directory.
+        # Note the zip file must be in the format described in the zarr-python docs:
+        # "
+        #  Take note that the files in the Zip file must be relative to the root of the Zarr archive. 
+        #  You may find it easier to create such a Zip file with 7z, e.g.:
+        #       `7z a -tzip archive.zarr.zip archive.zarr/.`
+        # "
+        gload = SmallZarrGroups.load_zip(joinpath(path,"test.zip"))
+        @test collect(gload["testarray1"]) == data1
+        @test attrs(gload["testarray1"]) == OrderedDict([
+            "foo" => "bar1",
+        ])
+        @test gload["testarray2"] == data2
+        @test attrs(gload["testarray2"]) == OrderedDict([])
+        @test attrs(gload) == OrderedDict([])
+        @test gload["testgroup1/testarray1"] == data3
+        @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
+            "foo" => "bar3",
+        ])
+    end
+end
+
+@testset "saving and loading an in memory zip file" begin
+    g = ZGroup()
+    data1 = rand(10,20)
+    g["testarray1"] = data1
+    attrs(g["testarray1"])["foo"] = "bar1"
+    data2 = rand(Int,20)
+    g["testarray2"] = data2
+    data3 = rand(UInt8,20)
+    g["testgroup1"] = ZGroup()
+    g["testgroup1"]["testarray1"] = data3
+    attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
+    io = IOBuffer()
+    SmallZarrGroups.save_zip(io, g)
+    data = take!(io)
+    # data now contains the data of a zipfile
+    # it could be saved to disk, sent to another process, or loaded back as a ZGroup.
+    gload = SmallZarrGroups.load_zip(data)
+    @test collect(gload["testarray1"]) == data1
+    @test attrs(gload["testarray1"]) == OrderedDict([
+        "foo" => "bar1",
+    ])
+    @test gload["testarray2"] == data2
+    @test attrs(gload["testarray2"]) == OrderedDict([])
+    @test attrs(gload) == OrderedDict([])
+    @test gload["testgroup1/testarray1"] == data3
+    @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
+        "foo" => "bar3",
+    ])
+end
+
+@testset "deprecated saving and loading a zip file" begin
+    g = ZGroup()
+    data1 = rand(10,20)
+    g["testarray1"] = data1
+    attrs(g["testarray1"])["foo"] = "bar1"
+    data2 = rand(Int,20)
+    g["testarray2"] = data2
+    data3 = rand(UInt8,20)
+    g["testgroup1"] = ZGroup()
+    g["testgroup1"]["testarray1"] = data3
+    attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
+    mktempdir() do path
+        # Note this will delete pre existing data at "path/test.zip".
         # If path ends in ".zip" the data will be saved in a zip file.
         # This zip file can be read by zarr-python.
         SmallZarrGroups.save_dir(joinpath(path,"test.zip"),g)
@@ -266,7 +335,7 @@ end
     end
 end
 
-@testset "saving and loading an in memory zip file" begin
+@testset "deprecated saving and loading an in memory zip file" begin
     g = ZGroup()
     data1 = rand(10,20)
     g["testarray1"] = data1

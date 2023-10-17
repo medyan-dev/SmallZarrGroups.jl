@@ -37,8 +37,9 @@ function write_key(d::DirectoryWriter, key::AbstractString, data)::Nothing
 end
 
 """
-Write to an in memory zipfile, that gets saved to disk on close.
-This writer will overwrite any existing file at `path`
+Write to an `IO` in ZipStore format.
+The wrapped io will be written to, 
+but will not be seeked or read.
 """
 struct ZarrZipWriter{IO_TYPE<:IO} <: AbstractWriter
     zipfile::ZipWriter{IO_TYPE}

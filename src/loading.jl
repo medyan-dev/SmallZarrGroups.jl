@@ -11,6 +11,22 @@ function load_dir(dirpath::AbstractString)::ZGroup
     load_dir(reader)
 end
 
+"""
+    load_zip(filename::AbstractString)::ZGroup
+    load_zip(data::Vector{UInt8})::ZGroup
+
+
+Load data in a file `filename` or a `data` vector in ZipStore format.
+"""
+function load_zip(filename::AbstractString)::ZGroup
+    reader = ZarrZipReader(read(filename))
+    load_dir(reader)
+end
+function load_zip(data::Vector{UInt8})::ZGroup
+    reader = ZarrZipReader(data)
+    load_dir(reader)
+end
+
 
 function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict,  key_prefix)
     attrsidx = get(Returns(0), keyname_dict, key_prefix*".zattrs")
