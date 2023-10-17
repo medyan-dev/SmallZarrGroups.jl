@@ -7,6 +7,8 @@ Note this will delete pre existing data at dirpath
 """
 function save_dir(dirpath::AbstractString, z::ZGroup)
     if endswith(dirpath, ".zip")
+        @argcheck !isdir(dirpath)
+        mkpath(dirname(dirpath))
         save_zip(dirpath, z)
     else
         save_dir(DirectoryWriter(dirpath), z)
