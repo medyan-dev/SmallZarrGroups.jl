@@ -108,7 +108,7 @@ function load_dir(reader::AbstractReader)::ZGroup
                 end
             end
 
-            zarray = if metadata.is_column_major
+            zarray = if metadata.is_column_major || ndims(array) ≤ 1
                 ZArray(array;
                     chunks = Tuple(chunks),
                     compressor = metadata.compressor,

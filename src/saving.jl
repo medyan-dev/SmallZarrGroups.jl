@@ -89,7 +89,8 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
     if zarr_size != 0 && !any(iszero, shape)
         chunks = Tuple(z.chunks)
         # store chunks
-        shaped_chunkdata = zeros(UInt8, zarr_size, chunks...)
+        shaped_chunkdata = zeros(UInt8, zarr_size, reverse(chunks)...)
+        permuted_shaped_chunkdata = PermutedDimsArray(shaped_chunkdata, (1, ndims(z)+1:-1:2...))
         shaped_array = if dtype.julia_size == 1
             reshape(reinterpret(reshape, UInt8, data), 1, shape...)
         else
@@ -102,7 +103,7 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
             real_chunksize = chunkstop .- chunkstart .+ 1
             # now create overlapping views
             array_view = view(shaped_array, :, (range.(chunkstart, chunkstop))...)
-            chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
+            chunk_view = view(permuted_shaped_chunkdata, :, (range.(1, real_chunksize))...)
             # TODO check if the data can just be directly copied.
             for (zarr_byte, julia_byte) in enumerate(dtype.byteorder)
                 selectdim(chunk_view, 1, zarr_byte) .= selectdim(array_view, 1, julia_byte)
@@ -122,7 +123,7 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
             "dtype": $dtype_str,
             "fill_value": null,
             "filters": null,
-            "order": "F",
+            "order": "C",
             "shape": [$(join(shape, ", "))],
             "zarr_format": 2
         }
