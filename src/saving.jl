@@ -83,6 +83,7 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
     dtype_str::String = sprint(write_type, eltype(data))
     dtype::ParsedType = parse_zarr_type(JSON3.read(dtype_str))
     @assert dtype.julia_type == eltype(data)
+    @assert dtype.in_native_order
     shape = size(data)
     zarr_size = dtype.type_size
     norm_compressor = normalize_compressor(z.compressor)
