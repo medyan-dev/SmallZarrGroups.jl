@@ -83,15 +83,16 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
     dtype_str::String = sprint(write_type, eltype(data))
     dtype::ParsedType = parse_zarr_type(JSON3.read(dtype_str))
     @assert dtype.julia_type == eltype(data)
+    @assert dtype.in_native_order
     shape = size(data)
-    zarr_size = dtype.zarr_size
+    zarr_size = dtype.type_size
     norm_compressor = normalize_compressor(z.compressor)
     if zarr_size != 0 && !any(iszero, shape)
         chunks = Tuple(z.chunks)
         # store chunks
         shaped_chunkdata = zeros(UInt8, zarr_size, reverse(chunks)...)
         permuted_shaped_chunkdata = PermutedDimsArray(shaped_chunkdata, (1, ndims(z)+1:-1:2...))
-        shaped_array = if dtype.julia_size == 1
+        shaped_array = if zarr_size == 1
             reshape(reinterpret(reshape, UInt8, data), 1, shape...)
         else
             reinterpret(reshape, UInt8, data)
@@ -104,10 +105,7 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
             # now create overlapping views
             array_view = view(shaped_array, :, (range.(chunkstart, chunkstop))...)
             chunk_view = view(permuted_shaped_chunkdata, :, (range.(1, real_chunksize))...)
-            # TODO check if the data can just be directly copied.
-            for (zarr_byte, julia_byte) in enumerate(dtype.byteorder)
-                selectdim(chunk_view, 1, zarr_byte) .= selectdim(array_view, 1, julia_byte)
-            end
+            copy!(chunk_view, array_view)
             compressed_chunkdata = compress(norm_compressor, reshape(shaped_chunkdata,:), zarr_size)
             # empty chunk has name "0" this is the case for zero dim arrays
             chunkname = key_prefix*(isempty(chunktuple) ? "0" : join(chunktuple, '.'))
