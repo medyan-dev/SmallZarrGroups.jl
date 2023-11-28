@@ -42,7 +42,7 @@ function load_dir(reader::AbstractReader)::ZGroup
     output = ZGroup()
     keynames = key_names(reader)
     splitkeys = map(x->split(x,'/';keepempty=false), keynames)
-    keyname_dict = Dict(zip(keynames,eachindex(keynames)))
+    keyname_dict::Dict{String, Int} = Dict{String, Int}(zip(keynames,eachindex(keynames)))
     try_add_attrs!(output, reader, keyname_dict, "")
     for splitkey in sort(splitkeys)
         if length(splitkey) < 2
@@ -57,66 +57,85 @@ function load_dir(reader::AbstractReader)::ZGroup
             arrayidx = keyname_dict[arrayname*"/.zarray"]
             metadata = parse_zarr_metadata(JSON3.read(read_key_idx(reader, arrayidx)))
             fill_value = metadata.fill_value
-            shape, chunks = (metadata.shape, metadata.chunks)
-            array = fill(fill_value, shape...)
-            type_size = metadata.dtype.type_size
-            T = metadata.dtype.julia_type
-
-            # If there is no actual data don't load chunks
-            if !(any(==(0), shape) || type_size == 0)
-                # load chunks
-                for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
-                    chunktuple = Tuple(chunkidx) .- 1
-                    # empty chunk has name "0" this is the case for zero dim arrays
-                    chunkname = arrayname*"/"*(isempty(chunktuple) ? "0" : join(chunktuple, metadata.dimension_separator))
-                    chunknameidx = get(Returns(0), keyname_dict, chunkname)
-                    if chunknameidx > 0
-                        rawchunkdata = read_key_idx(reader, chunknameidx)
-                        decompressed_chunkdata = Vector{T}(undef, prod(chunks))
-                        unsafe_decompress!(
-                            Base.unsafe_convert(Ptr{UInt8}, decompressed_chunkdata),
-                            sizeof(decompressed_chunkdata),
-                            rawchunkdata,
-                            metadata.compressor,
-                        )
-                        if !metadata.dtype.in_native_order
-                            for i in eachindex(decompressed_chunkdata)
-                                decompressed_chunkdata[i] = htol(ntoh(decompressed_chunkdata[i]))
-                            end
-                        end
-                        chunkstart = chunktuple .* chunks .+ 1
-                        chunkstop = min.(chunkstart .+ chunks .- 1, shape)
-                        real_chunksize = chunkstop .- chunkstart .+ 1
-                        
-                        if metadata.is_column_major || ndims(array) ≤ 1
-                            shaped_chunkdata = reshape(decompressed_chunkdata, chunks...)
-                            copyto!(
-                                array,
-                                CartesianIndices(((range.(chunkstart, chunkstop))...,)),
-                                shaped_chunkdata,
-                                CartesianIndices(((range.(1, real_chunksize))...,))
-                            )
-                        else
-                            shaped_chunkdata = permutedims(reshape(decompressed_chunkdata, reverse(chunks)...), ((length(chunks):-1:1)...,))
-                            copyto!(
-                                array,
-                                CartesianIndices(((range.(chunkstart, chunkstop))...,)),
-                                shaped_chunkdata,
-                                CartesianIndices(((range.(1, real_chunksize))...,))
-                            )
-                        end
-                    end
-                end
-            end
-
-            zarray = ZArray(array;
-                chunks = Tuple(chunks),
-                compressor = metadata.compressor,
+            zarray = load_array(
+                fill_value,
+                Tuple(metadata.shape),
+                Tuple(metadata.chunks),
+                arrayname,
+                metadata.dimension_separator,
+                keyname_dict,
+                reader,
+                metadata.dtype.in_native_order,
+                metadata.is_column_major,
+                metadata.compressor,
             )
+
+
             output[arrayname] = zarray
 
             try_add_attrs!(zarray, reader, keyname_dict, arrayname*"/")
         end
     end
     output
+end
+
+
+function load_array(
+        fill_value::T,
+        shape::NTuple{N, Int},
+        chunks::NTuple{N, Int},
+        arrayname::String,
+        dimension_separator::Char,
+        keyname_dict::Dict{String,Int},
+        reader,
+        in_native_order::Bool,
+        is_column_major::Bool,
+        compressor,
+    )::ZArray{T, N} where {T, N}
+    array = fill(fill_value, shape...)
+    # If there is no actual data don't load chunks
+    if !(any(==(0), shape) || sizeof(T) == 0)
+        # load chunks
+        for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
+            chunktuple = Tuple(chunkidx) .- 1
+            # empty chunk has name "0" this is the case for zero dim arrays
+            chunkname = arrayname*"/"*(isempty(chunktuple) ? "0" : join(chunktuple, dimension_separator))
+            chunknameidx = get(Returns(0), keyname_dict, chunkname)
+            if chunknameidx > 0
+                rawchunkdata = read_key_idx(reader, chunknameidx)
+                decompressed_chunkdata = Vector{T}(undef, prod(chunks))
+                GC.@preserve decompressed_chunkdata unsafe_decompress!(
+                    Base.unsafe_convert(Ptr{UInt8}, decompressed_chunkdata),
+                    sizeof(decompressed_chunkdata),
+                    rawchunkdata,
+                    compressor,
+                )
+                if !in_native_order
+                    for i in eachindex(decompressed_chunkdata)
+                        decompressed_chunkdata[i] = htol(ntoh(decompressed_chunkdata[i]))
+                    end
+                end
+                chunkstart = chunktuple .* chunks .+ 1
+                chunkstop = min.(chunkstart .+ chunks .- 1, shape)
+                real_chunksize = chunkstop .- chunkstart .+ 1
+                
+                shaped_chunkdata = if is_column_major || N ≤ 1
+                    reshape(decompressed_chunkdata, chunks...)
+                else
+                    permutedims(reshape(decompressed_chunkdata, reverse(chunks)...), ((N:-1:1)...,))
+                end
+                copyto!(
+                    array,
+                    CartesianIndices(((range.(chunkstart, chunkstop))...,)),
+                    shaped_chunkdata,
+                    CartesianIndices(((range.(1, real_chunksize))...,))
+                )
+            end
+        end
+    end
+
+    ZArray(array;
+        chunks,
+        compressor,
+    )
 end
