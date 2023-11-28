@@ -2,52 +2,23 @@
 abstract type Codec end
 abstract type StringCodec <: Codec end
 abstract type ArrayCodec <: Codec end
-abstract type CrossCodec <: Codec end
 
-struct ReaderView
-    reader::AbstractReader
-    idx::Int
-end
-
-struct DecodedRepr
-    shape::Union{Vector{Int}, Nothing} # nothing if string
-    type::DataType # Original type if string
-end
-
-@kwdef struct BytesCodec <: CrossCodec
+@kwdef struct BytesCodec <: ArrayCodec
     next::StringCodec
     is_big::Bool = false
 end
 
-const BytesCodecDataTypes = Union{
-    Bool,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    UInt8,
-    UInt16,
-    UInt32,
-    UInt64,
-    Float16,
-    Float32,
-    Float64,
-    ComplexF32,
-    ComplexF64,
-    NTuple{N, UInt8} where N,
-}
-
 @kwdef struct BloscCodec <: StringCodec
     next::StringCodec
-    cname::String
-    clevel::Int
-    shuffle::Int
-    typesize::Int
-    blocksize::Int
+    cname::String="lz4"
+    clevel::Int=5
+    shuffle::Int=1
+    typesize::Int=1
+    blocksize::Int=0
 end
 
 @kwdef struct PermuteDimsCodec <: ArrayCodec
-    next::Union{ArrayCodec, CrossCodec}
+    next::ArrayCodec
     order::Vector{Int}
 end
 
@@ -55,51 +26,68 @@ end
 struct StorageCodec <: StringCodec
 end
 
-function parse_codec(list, idx, decoded_repr::DecodedRepr)::Codec
-    # TODO should each datatype have its own default codec?
-    if isempty(idx > length(list))
-        if isnothing(decoded_repr.shape)
-            return StorageCodec()
-        else
-            error("codec parse: Final codec must decode a byte string, instead got $(decoded_repr)")
-        end
+function parse_codec(list, idx; default_typesize)::ArrayCodec
+    if idx > length(list)
+        error("codec parse: Final codec must decode a byte string")
     end
     top = list[idx]
     if top["name"] == "bytes"
-        if isnothing(decoded_repr.shape)
-            error("codec parse: $(top) must encode an array, instead got a byte string")
-        end
-        if !(decoded_repr.type <: BytesCodecDataTypes)
-            error("codec parse: $(top) must encode an $(BytesCodecDataTypes) array, instead got $(decoded_repr.type)")
-        else
-            is_big = (
-                haskey(top, "configuration") && 
-                haskey(top["configuration"], "endian") &&
-                top["configuration"]["endian"] == "big"
-            )
-            BytesCodec(;
-                is_big,
-                next=parse_codec(list, idx+1, DecodedRepr(nothing,decoded_repr.type)),
-            )
-        end
+        is_big = (
+            haskey(top, "configuration") && 
+            haskey(top["configuration"], "endian") &&
+            top["configuration"]["endian"] == "big"
+        )
+        BytesCodec(;
+            is_big,
+            next=parse_string_codec(list, idx+1; default_typesize),
+        )
     elseif top["name"] == "blosc"
-        if isnothing(decoded_repr.shape)
-            # parse blosc, this also sets defaults
-            default_typesize = if isbitstype(decoded_repr.type)
-                sizeof(decoded_repr.type)
-            else
-                1
+        error("codec parse: $(top) codec must encode a byte string, instead got $(decoded_repr)")
+    else
+        error("$(top["name"]) not supported yet")
+    end
+end
+
+function parse_string_codec(list, idx; default_typesize)::StringCodec
+    if idx > length(list)
+        return StorageCodec()
+    end
+    top = list[idx]
+    next = parse_string_codec(list, idx+1; default_typesize=1)
+    if top["name"] == "blosc"
+        # parse blosc
+        possible_values = (;
+            cname= ("lz4", ["blosclz", "lz4", "lz4hc", "snappy", "zlib", "zstd"],),
+            clevel= (5, 0:9,),
+            shuffle= ("shuffle", ["noshuffle", "shuffle", "bitshuffle"],),
+            blocksize= (0, 0:typemax(Int),),
+            typesize= (default_typesize, typemin(Int):typemax(Int),),
+        )
+        use_default = false
+        if haskey(top, "configuration")
+            config = top["configuration"]
+            for (key, (default, val_range)) in pairs(possible_values)
+                if get(Returns(default), config, string(key)) ∉ val_range
+                    return BloscCodec(;next)
+                end
             end
-            possible_values = [
-                ("cname", "lz4", ["blosclz", "lz4", "lz4hc", "snappy", "zlib", "zstd"]),
-                ("clevel", 5, 0:9,),
-                ("shuffle", 1, 0:2,),
-                ("blocksize", 0, 0:typemax(Int),),
-                ("typesize", default_typesize, typemin(Int):typemax(Int),),
-            ]
-            
+            shuffle_str = get(Returns("shuffle"), config, "shuffle")
+            shuffle = if shuffle_str == "shuffle"
+                1
+            elseif shuffle_str == "noshuffle"
+                0
+            elseif shuffle_str == "bitshuffle"
+                2
+            end
+            return BloscCodec(;next,
+                cname = get(Returns("lz4"), config, "cname"),
+                clevel = get(Returns(5), config, "clevel"),
+                shuffle,
+                blocksize = get(Returns(0), config, "blocksize"),
+                typesize = get(Returns(default_typesize), config, "typesize"),
+            )
         else
-            error("codec parse: $(top) codec must encode a byte string, instead got $(decoded_repr)")
+            return BloscCodec(;next)
         end
     else
         error("$(top["name"]) not supported yet")
