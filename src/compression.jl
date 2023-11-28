@@ -10,33 +10,32 @@ const BLOSC_MAX_BUFFERSIZE = typemax(Cint) - BLOSC_MAX_OVERHEAD
 import TranscodingStreams, CodecZlib
 
 """
-Return the uncompressed data.
-May return src if no compression was used, or buffer, if compression was used.
-
-`src` is the compressed data.
-`buffer` is a buffer used to avoid allocations, it may be resized and returned. 
+Uncompressed the data.
 """
-function decompress!(buffer::Vector{UInt8}, src::Vector{UInt8}, metadata::ParsedMetaData)::Vector{UInt8}
-    expected_output_size = prod(metadata.chunks)*metadata.dtype.zarr_size
-    @argcheck expected_output_size > 0
-    if isnothing(metadata.compressor)
-        return src
-    end
-    id = metadata.compressor.id
-    if id == "blosc"
+@noinline function unsafe_decompress!(p::Ptr{UInt8}, n::Int, src::Vector{UInt8}, compressor)::Nothing
+    @argcheck n > 0
+    if !isnothing(compressor) && compressor.id == "blosc"
         numinternalthreads = 1
-        buffer = Vector{UInt8}(undef, expected_output_size)
         sz = ccall((:blosc_decompress_ctx,Blosc_jll.libblosc), Cint,
-        (Ptr{Cvoid},Ptr{Cvoid},Csize_t,Cint), src, buffer, expected_output_size, numinternalthreads)
-        sz == expected_output_size || error("Blosc decompress error, compressed data is corrupted")
-        buffer
-    elseif id == "zlib"
-        TranscodingStreams.transcode(CodecZlib.ZlibDecompressor, src)
-    elseif id == "gzip"
-        TranscodingStreams.transcode(CodecZlib.GzipDecompressor, src)
-    else
-        error("$(id) compressor not supported yet")
+        (Ptr{Cvoid},Ptr{Cvoid},Csize_t,Cint), src, p, n, numinternalthreads)
+        sz == n || error("Blosc decompress error, compressed data is corrupted")
+        return
     end
+    r = if isnothing(compressor)
+        src
+    else
+        id = compressor.id
+        if id == "zlib"
+            TranscodingStreams.transcode(CodecZlib.ZlibDecompressor, src)
+        elseif id == "gzip"
+            TranscodingStreams.transcode(CodecZlib.GzipDecompressor, src)
+        else
+            error("$(id) compressor not supported yet")
+        end
+    end
+    @argcheck length(r) == n
+    GC.@preserve r Base.unsafe_copyto!(p, Base.unsafe_convert(Ptr{UInt8}, r), n)
+    nothing
 end
 
 """

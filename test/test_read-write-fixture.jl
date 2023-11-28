@@ -70,21 +70,14 @@ function compare_jl_py_zarray(jl_zarray::SmallZarrGroups.ZArray, py_zarray)
     # compare shapes
     @test size(jl_zarray.data) == pyconvert(Tuple,py_zarray.shape)
     # test values equal
-    py_data, ok = try
-        Array(PyArray(py_zarray.get_basic_selection())), true
-    catch e
-        if endswith(e.msg, "cannot convert this Python 'ndarray' to a 'PyArray'")
-            Array(PyArray(py_zarray.get_basic_selection().tobytes())), false
-        else
-            rethrow()
-        end
-    end
-    if ok
-        if eltype(py_data) <: PythonCall.Utils.StaticString{UInt32}
-            @test rstrip.(String.(jl_zarray.data), '\0') == rstrip.(String.(py_data), '\0')
-        else
-            @test isequal(py_data,jl_zarray.data)
-        end
+    py_data = Array(PyArray(py_zarray.get_basic_selection()))
+    if isequal(py_data, jl_zarray.data)
+        @test isequal(py_data, jl_zarray.data)
+    else
+        @error "mismatch between python data and julia data"
+        @error jl_zarray.compressor
+        @error jl_zarray.chunks
+        @test false
     end
 end
 
