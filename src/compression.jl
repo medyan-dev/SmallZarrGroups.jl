@@ -21,7 +21,7 @@ Uncompressed the data.
         sz == n || error("Blosc decompress error, compressed data is corrupted")
         return
     end
-    r = if isnothing(compressor)
+    r::Vector{UInt8} = if isnothing(compressor)
         src
     else
         id = compressor.id
@@ -34,7 +34,7 @@ Uncompressed the data.
         end
     end
     @argcheck length(r) == n
-    GC.@preserve r Base.unsafe_copyto!(p, Base.unsafe_convert(Ptr{UInt8}, r), n)
+    GC.@preserve r Base.unsafe_copyto!(p, pointer(r), n)
     nothing
 end
 
