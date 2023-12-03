@@ -105,7 +105,7 @@ function load_array(
                 rawchunkdata = read_key_idx(reader, chunknameidx)
                 decompressed_chunkdata = Vector{T}(undef, prod(chunks))
                 GC.@preserve decompressed_chunkdata unsafe_decompress!(
-                    Base.unsafe_convert(Ptr{UInt8}, decompressed_chunkdata),
+                    convert(Ptr{UInt8}, pointer(decompressed_chunkdata)),
                     sizeof(decompressed_chunkdata),
                     rawchunkdata,
                     compressor,
