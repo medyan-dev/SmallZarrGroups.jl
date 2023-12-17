@@ -1,6 +1,6 @@
 # loading a storage tree from a directory or zip file.
 
-function load_dir(dirpath::AbstractString)::ZGroup
+function load_dir(dirpath::AbstractString; predicate=Returns(true))::ZGroup
     reader = if isdir(dirpath)
         DirectoryReader(dirpath)
     elseif isfile(dirpath)
@@ -8,7 +8,7 @@ function load_dir(dirpath::AbstractString)::ZGroup
     else
         throw(ArgumentError("loading directory $(repr(dirpath)): No such file or directory"))
     end
-    load_dir(reader)
+    load_dir(reader; predicate)
 end
 
 """
@@ -18,13 +18,13 @@ end
 
 Load data in a file `filename` or a `data` vector in ZipStore format.
 """
-function load_zip(filename::AbstractString)::ZGroup
+function load_zip(filename::AbstractString; predicate=Returns(true))::ZGroup
     reader = ZarrZipReader(read(filename))
-    load_dir(reader)
+    load_dir(reader; predicate)
 end
-function load_zip(data::Vector{UInt8})::ZGroup
+function load_zip(data::Vector{UInt8}; predicate=Returns(true))::ZGroup
     reader = ZarrZipReader(data)
-    load_dir(reader)
+    load_dir(reader; predicate)
 end
 
 
@@ -38,11 +38,17 @@ function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, k
     end
 end
 
-function load_dir(reader::AbstractReader)::ZGroup
+function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
     output = ZGroup()
     keynames = key_names(reader)
-    splitkeys = map(x->split(x,'/';keepempty=false), keynames)
-    keyname_dict::Dict{String, Int} = Dict{String, Int}(zip(keynames,eachindex(keynames)))
+    splitkeys = Vector{SubString{String}}[]
+    keyname_dict = Dict{String, Int}()
+    for (key_idx, keyname) in enumerate(keynames)
+        if predicate(keyname)
+            push!(splitkeys, split(keyname,'/';keepempty=false))
+            keyname_dict[keyname] = key_idx
+        end
+    end
     try_add_attrs!(output, reader, keyname_dict, "")
     for splitkey in sort(splitkeys)
         if length(splitkey) < 2

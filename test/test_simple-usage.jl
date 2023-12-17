@@ -185,8 +185,7 @@ end
         """
 end
 
-
-@testset "saving and loading a directory" begin
+function example_group()::ZGroup
     g = ZGroup()
     data1 = rand(10,20)
     g["testarray1"] = data1
@@ -198,21 +197,26 @@ end
     g["testgroup1"] = ZGroup()
     g["testgroup1"]["testarray1"] = data3
     attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
+    g
+end
+
+@testset "saving and loading a directory" begin
+    g = example_group()
     mktempdir() do path
         # Note this will delete pre existing data at dirpath
         # if path ends in ".zip" the data will be saved in a zip file instead.
         SmallZarrGroups.save_dir(path,g)
         gload = SmallZarrGroups.load_dir(path)
-        @test gload["testarray1"] == data1
+        @test gload["testarray1"] == g["testarray1"]
         @test attrs(gload["testarray1"]) == OrderedDict([
             "foo" => "bar1",
         ])
-        @test gload["testarray2"] == data2
+        @test gload["testarray2"] == g["testarray2"]
         @test attrs(gload["testarray2"]) == OrderedDict([])
         @test attrs(gload) == OrderedDict([
             "qaz" => "baz",
         ])
-        @test gload["testgroup1/testarray1"] == data3
+        @test gload["testgroup1/testarray1"] == g["testgroup1/testarray1"]
         @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
             "foo" => "bar3",
         ])
@@ -227,16 +231,7 @@ end
 end
 
 @testset "saving and loading a zip file" begin
-    g = ZGroup()
-    data1 = rand(10,20)
-    g["testarray1"] = data1
-    attrs(g["testarray1"])["foo"] = "bar1"
-    data2 = rand(Int,20)
-    g["testarray2"] = data2
-    data3 = rand(UInt8,20)
-    g["testgroup1"] = ZGroup()
-    g["testgroup1"]["testarray1"] = data3
-    attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
+    g = example_group()
     mktempdir() do path
         # Note this will delete pre existing data at "path/test.zip".
         # This zip file can be read by zarr-python.
@@ -251,17 +246,40 @@ end
         #       `7z a -tzip archive.zarr.zip archive.zarr/.`
         # "
         gload = SmallZarrGroups.load_zip(joinpath(path,"test.zip"))
-        @test collect(gload["testarray1"]) == data1
+        @test gload["testarray1"] == g["testarray1"]
         @test attrs(gload["testarray1"]) == OrderedDict([
             "foo" => "bar1",
         ])
-        @test gload["testarray2"] == data2
+        @test gload["testarray2"] == g["testarray2"]
         @test attrs(gload["testarray2"]) == OrderedDict([])
-        @test attrs(gload) == OrderedDict([])
-        @test gload["testgroup1/testarray1"] == data3
+        @test attrs(gload) == OrderedDict([
+            "qaz" => "baz",
+        ])
+        @test gload["testgroup1/testarray1"] == g["testgroup1/testarray1"]
         @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
             "foo" => "bar3",
         ])
+    end
+end
+
+@testset "loading with predicate" begin
+    g = example_group()
+    mktempdir() do path
+        SmallZarrGroups.save_zip(joinpath(path,"test.zip"), g)
+        # A predicate function can be used to load a specific array or group
+        # The predicate function filters keys in the underlying store.
+        gload = SmallZarrGroups.load_zip(
+            joinpath(path,"test.zip");
+            predicate = startswith("testgroup1/testarray1/"),
+        )
+        @test collect(keys(gload)) == ["testgroup1"]
+        # Higher level groups may have their attributes ignored.
+        @test attrs(gload) == OrderedDict([])
+        @test collect(keys(gload["testgroup1"])) == ["testarray1"]
+        @test attrs(gload["testgroup1/testarray1"]) == OrderedDict([
+            "foo" => "bar3",
+        ])
+        @test gload["testgroup1/testarray1"] == collect(g["testgroup1/testarray1"])
     end
 end
 
