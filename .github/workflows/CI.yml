@@ -26,21 +26,13 @@ jobs:
         arch:
           - x64
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: actions/cache@v1
-        env:
-          cache-name: cache-artifacts
-        with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
+          show-versioninfo: true
+      - uses: julia-actions/cache@v1
       - name: Develop packages
         run: |
           julia --project=test -e '
@@ -53,8 +45,6 @@ jobs:
       - name: Print package status
         run: |
           julia --project=test -e '
-            using InteractiveUtils
-            versioninfo()
             using Pkg
             Pkg.status(;mode=Pkg.PKGMODE_MANIFEST)'
       - name: Run tests
