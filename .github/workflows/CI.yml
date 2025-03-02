@@ -16,23 +16,21 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.9'
-          - '1'
+          - '1.11'
           # - 'nightly'
         os:
           - ubuntu-latest
           - windows-latest
           - macos-latest
         arch:
-          - x64
+          - 'default'
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: julia-actions/cache@v1
       - name: Develop packages
         run: |
           julia --project=test -e '

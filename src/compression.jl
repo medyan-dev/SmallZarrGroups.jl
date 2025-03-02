@@ -1,40 +1,24 @@
-import Blosc_jll
-
-# The following constants should match those in blosc.h
-const BLOSC_VERSION_FORMAT = 2
-const BLOSC_MAX_OVERHEAD = 16
-
-# Blosc is currently limited to 32-bit buffer sizes (Blosc/c-blosc#67)
-const BLOSC_MAX_BUFFERSIZE = typemax(Cint) - BLOSC_MAX_OVERHEAD
-
-import TranscodingStreams, CodecZlib
+using ChunkCodecLibBlosc: BloscEncodeOptions, BloscCodec
+using ChunkCodecLibZlib: ZlibEncodeOptions, ZlibCodec, GzipCodec
+using ChunkCodecCore: encode, try_decode!, NoopCodec
 
 """
 Uncompressed the data.
 """
-@noinline function unsafe_decompress!(p::Ptr{UInt8}, n::Int, src::Vector{UInt8}, compressor)::Nothing
-    @argcheck n > 0
-    if !isnothing(compressor) && compressor.id == "blosc"
-        numinternalthreads = 1
-        sz = ccall((:blosc_decompress_ctx,Blosc_jll.libblosc), Cint,
-        (Ptr{Cvoid},Ptr{Cvoid},Csize_t,Cint), src, p, n, numinternalthreads)
-        sz == n || error("Blosc decompress error, compressed data is corrupted")
-        return
-    end
-    r::Vector{UInt8} = if isnothing(compressor)
-        src
+function decompress!(dst::AbstractVector{UInt8}, src::Vector{UInt8}, compressor)::Nothing
+    n = length(dst)
+    decoded_n = if isnothing(compressor)
+        try_decode!(NoopCodec(), dst, src)
+    elseif compressor.id == "blosc"
+        try_decode!(BloscCodec(), dst, src)
+    elseif compressor.id == "zlib"
+        try_decode!(ZlibCodec(), dst, src)
+    elseif compressor.id == "gzip"
+        try_decode!(GzipCodec(), dst, src)
     else
-        id = compressor.id
-        if id == "zlib"
-            TranscodingStreams.transcode(CodecZlib.ZlibDecompressor, src)
-        elseif id == "gzip"
-            TranscodingStreams.transcode(CodecZlib.GzipDecompressor, src)
-        else
-            error("$(id) compressor not supported yet")
-        end
-    end
-    @argcheck length(r) == n
-    GC.@preserve r Base.unsafe_copyto!(p, pointer(r), n)
+        error("$(compressor.id) compressor not supported yet")
+    end::Int64
+    @argcheck decoded_n == n
     nothing
 end
 
@@ -83,7 +67,6 @@ end
 
 function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Vector{UInt8}
     if compressor.id == "blosc"
-        numinternalthreads = 1
         clevel::Int = get(Returns(5), compressor, "clevel")
         shuffle::Int = get(Returns(1), compressor, "shuffle")
         doshuffle::Int = if shuffle == -1
@@ -96,28 +79,10 @@ function compress(compressor::JSON3.Object, src::Vector{UInt8}, elsize::Int)::Ve
             shuffle
         end
         cname::String = get(Returns("lz4"), compressor, "cname")
-        blocksize::Int = get(Returns(0), compressor, "blocksize")
-        @argcheck length(src) ≤ BLOSC_MAX_BUFFERSIZE
-        dest = Vector{UInt8}(undef, BLOSC_MAX_OVERHEAD + length(src))
-        sz = ccall((:blosc_compress_ctx,Blosc_jll.libblosc), Cint,
-            (Cint, Cint, Csize_t, Csize_t, Ptr{Cvoid}, Ptr{Cvoid}, Csize_t, Cstring, Csize_t, Cint), 
-            clevel, doshuffle, elsize, length(src), src, dest, length(dest), cname, blocksize, numinternalthreads
-        )
-        sz == 0 && error("Blosc cannot compress")
-        sz < 0 && error("Internal Blosc error. This
-            should never happen.  If you see this, please report it back
-            together with the buffer data causing this and compression settings.
-        ")
-        resize!(dest, sz)
+        encode(BloscEncodeOptions(;clevel, compressor=cname, doshuffle, typesize=elsize), src)
     elseif compressor.id == "zlib"
         level::Int = get(Returns(1), compressor, "level")
-        zlib_codec =  CodecZlib.ZlibCompressor(;level)
-        TranscodingStreams.initialize(zlib_codec)
-        try
-            TranscodingStreams.transcode(zlib_codec, src)
-        finally
-            TranscodingStreams.finalize(zlib_codec)
-        end
+        encode(ZlibEncodeOptions(;level), src)
     else
         # This should be unreachable because 
         # unknown compressors will be normalized to 
