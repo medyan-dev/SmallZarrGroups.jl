@@ -1,5 +1,8 @@
 using Test
 using Random
+using CondaPkg
+
+CondaPkg.add("zarr"; version="2.*")
 
 Random.seed!(1234)
 
