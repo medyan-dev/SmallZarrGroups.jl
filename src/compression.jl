@@ -1,24 +1,22 @@
 using ChunkCodecLibBlosc: BloscEncodeOptions, BloscCodec
 using ChunkCodecLibZlib: ZlibEncodeOptions, ZlibCodec, GzipCodec
-using ChunkCodecCore: encode, try_decode!, NoopCodec
+using ChunkCodecCore: encode, decode!, NoopCodec
 
 """
 Uncompressed the data.
 """
 function decompress!(dst::AbstractVector{UInt8}, src::Vector{UInt8}, compressor)::Nothing
-    n = length(dst)
-    decoded_n = if isnothing(compressor)
-        try_decode!(NoopCodec(), dst, src)
+    if isnothing(compressor)
+        decode!(NoopCodec(), dst, src)
     elseif compressor.id == "blosc"
-        try_decode!(BloscCodec(), dst, src)
+        decode!(BloscCodec(), dst, src)
     elseif compressor.id == "zlib"
-        try_decode!(ZlibCodec(), dst, src)
+        decode!(ZlibCodec(), dst, src)
     elseif compressor.id == "gzip"
-        try_decode!(GzipCodec(), dst, src)
+        decode!(GzipCodec(), dst, src)
     else
         error("$(compressor.id) compressor not supported yet")
-    end::Int64
-    @argcheck decoded_n == n
+    end
     nothing
 end
 
