@@ -10,3 +10,5 @@
 fixture
 fixture.tar.gz
 *.cov
+/agent-depot/
+/agent-logs/
