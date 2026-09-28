@@ -89,25 +89,32 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
     if zarr_size != 0 && !any(iszero, shape)
         chunks = Tuple(z.chunks)
         # store chunks
-        shaped_chunkdata = zeros(UInt8, zarr_size, reverse(chunks)...)
-        permuted_shaped_chunkdata = PermutedDimsArray(shaped_chunkdata, (1, ndims(z)+1:-1:2...))
+        # Like Zarr.jl, dimensions are reversed so that "C" order
+        # chunk data matches Julia's column major memory layout.
+        shaped_chunkdata = zeros(UInt8, zarr_size, chunks...)
         shaped_array = if zarr_size == 1
             reshape(reinterpret(reshape, UInt8, data), 1, shape...)
         else
             reinterpret(reshape, UInt8, data)
         end
-        for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
+        chunkindices = CartesianIndices(Tuple(cld.(shape,chunks)))
+        for chunkidx in chunkindices
             chunktuple = Tuple(chunkidx) .- 1
             chunkstart = chunktuple .* chunks .+ 1
             chunkstop = min.(chunkstart .+ chunks .- 1, shape)
             real_chunksize = chunkstop .- chunkstart .+ 1
+            # zero out stale data from the previous chunk in partial edge chunks,
+            # the first chunk can skip this because shaped_chunkdata starts as zeros
+            if real_chunksize != chunks && chunkidx != first(chunkindices)
+                fill!(shaped_chunkdata, 0x00)
+            end
             # now create overlapping views
             array_view = view(shaped_array, :, (range.(chunkstart, chunkstop))...)
-            chunk_view = view(permuted_shaped_chunkdata, :, (range.(1, real_chunksize))...)
+            chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
             copy!(chunk_view, array_view)
             compressed_chunkdata = compress(norm_compressor, reshape(shaped_chunkdata,:), zarr_size)
             # empty chunk has name "0" this is the case for zero dim arrays
-            chunkname = key_prefix*(isempty(chunktuple) ? "0" : join(chunktuple, '.'))
+            chunkname = key_prefix*(isempty(chunktuple) ? "0" : join(reverse(chunktuple), '.'))
             write_key(writer, chunkname, compressed_chunkdata)
         end
     end
@@ -115,13 +122,13 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
     write_key(writer, key_prefix*".zarray",
         codeunits("""
         {
-            "chunks": [$(join(z.chunks, ", "))],
+            "chunks": [$(join(reverse(z.chunks), ", "))],
             "compressor": $(JSON3.write(norm_compressor; allow_inf=true)),
             "dtype": $dtype_str,
             "fill_value": null,
             "filters": null,
             "order": "C",
-            "shape": [$(join(shape, ", "))],
+            "shape": [$(join(reverse(shape), ", "))],
             "zarr_format": 2
         }
         """)

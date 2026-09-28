@@ -57,3 +57,26 @@ end
         @test gload["c"][] == 0xFF
     end
 end
+
+@testset "partial edge chunks are padded with zeros" begin
+    # (2,5) makes the first chunk partial too
+    for shape in ((4,5), (2,5))
+        g = ZGroup()
+        data = reshape(Float64.(1:prod(shape)), shape)
+        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=nothing)
+        mktempdir() do path
+            SmallZarrGroups.save_dir(path, g)
+            for i in 0:cld(shape[1],3)-1, j in 0:cld(shape[2],2)-1
+                # chunk keys are reversed to match Zarr.jl
+                chunk = reshape(reinterpret(Float64, read(joinpath(path, "a", "$(j).$(i)"))), 3, 2)
+                rows = 3i+1:min(3i+3, shape[1])
+                cols = 2j+1:min(2j+2, shape[2])
+                @test chunk[1:length(rows), 1:length(cols)] == data[rows, cols]
+                padded = trues(3, 2)
+                padded[1:length(rows), 1:length(cols)] .= false
+                @test all(iszero, chunk[padded])
+            end
+            @test SmallZarrGroups.load_dir(path)["a"] == data
+        end
+    end
+end

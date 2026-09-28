@@ -63,10 +63,12 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
             arrayidx = keyname_dict[arrayname*"/.zarray"]
             metadata = parse_zarr_metadata(JSON3.read(read_key_idx(reader, arrayidx)))
             fill_value = metadata.fill_value
+            # Like Zarr.jl, dimensions are reversed so that the
+            # fastest changing dimension is first in Julia.
             zarray = load_array(
                 fill_value,
-                Tuple(metadata.shape),
-                Tuple(metadata.chunks),
+                Tuple(reverse(metadata.shape)),
+                Tuple(reverse(metadata.chunks)),
                 arrayname,
                 metadata.dimension_separator,
                 keyname_dict,
@@ -103,7 +105,7 @@ function load_array(
         for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
             chunktuple = Tuple(chunkidx) .- 1
             # empty chunk has name "0" this is the case for zero dim arrays
-            chunkname = arrayname*"/"*(isempty(chunktuple) ? "0" : join(chunktuple, dimension_separator))
+            chunkname = arrayname*"/"*(isempty(chunktuple) ? "0" : join(reverse(chunktuple), dimension_separator))
             chunknameidx = get(Returns(0), keyname_dict, chunkname)
             if chunknameidx > 0
                 rawchunkdata = read_key_idx(reader, chunknameidx)
@@ -117,7 +119,7 @@ function load_array(
                 chunkstop = min.(chunkstart .+ chunks .- 1, shape)
                 real_chunksize = chunkstop .- chunkstart .+ 1
                 
-                shaped_chunkdata = if is_column_major || N ≤ 1
+                shaped_chunkdata = if !is_column_major || N ≤ 1
                     reshape(decompressed_chunkdata, chunks...)
                 else
                     permutedims(reshape(decompressed_chunkdata, reverse(chunks)...), ((N:-1:1)...,))

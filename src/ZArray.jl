@@ -39,6 +39,10 @@ Create a ZArray.
 
 This is just a view of a regular Array with added metadata.
 
+Like Zarr.jl, the dimensions are reversed relative to the Zarr metadata and
+other languages such as Python. For example, a Julia array with size `(2, 3)`
+is stored with `"shape": [3, 2]`, and `A[i, j]` in Julia is `a[j-1, i-1]` in Python.
+
 The constructor does not copy the data Array, so do not mutate the
 array after creating the ZArray.
 
@@ -171,7 +175,8 @@ function normalize_chunks(
         data_bytes = prod(size)*elsize
         target_bytes = clamp(CHUNK_BASE*(data_bytes*2^-20)^(1/log2(10)), CHUNK_MIN, CHUNK_MAX)
         target_bytes = max(target_bytes, elsize)
-        # This is also from h5py, but the dims are iterated in reverse order because julia.
+        # This is also from h5py, but the dims are iterated in reverse order because
+        # Julia dimensions are the reverse of the Zarr dimensions.
         # Repeatedly loop over the dims, dividing the chunks size by 2.
         _chunks = size
         idx = Int(N)
