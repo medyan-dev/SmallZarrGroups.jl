@@ -1,6 +1,6 @@
 name = "SmallZarrGroups"
 uuid = "d423b6e5-1c84-4ae2-8d2d-b903aee15ac7"
-version = "0.8.13"
+version = "0.9.0-dev"
 authors = ["nhz2 <nhz2@cornell.edu>"]
 
 [deps]

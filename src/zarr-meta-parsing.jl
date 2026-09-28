@@ -4,10 +4,8 @@ using ArgCheck
 import JSON3
 import Base64
 
-"Character for native byte order"
-const NATIVE_ORDER = ENDIAN_BOM == 0x04030201 ? '<' : '>'
-"Character for other byte order"
-const OTHER_ORDER = ENDIAN_BOM == 0x04030201 ? '>' : '<'
+# Only little endian hosts and little endian zarr data are supported.
+@assert ENDIAN_BOM == 0x04030201 "SmallZarrGroups only supports little endian hosts"
 
 
 Base.@kwdef struct ParsedType
@@ -16,9 +14,6 @@ Base.@kwdef struct ParsedType
 
     "Number of bytes the type takes."
     type_size::Int64
-
-    "Does the endianess need to be swapped"
-    in_native_order::Bool
 end
 
 function Base.:(==)(a::ParsedType, b::ParsedType)
@@ -44,57 +39,47 @@ function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
         return ParsedType(;
             julia_type = Bool,
             type_size = 1,
-            in_native_order = true,
         )
     elseif typechar == 'i'
         @argcheck numthings in 1:8
         @argcheck count_ones(numthings) == 1
-        @argcheck (byteorder in "<>") || isone(numthings)
-        in_native_order = (byteorder == NATIVE_ORDER) || isone(numthings)
+        @argcheck (byteorder == '<') || isone(numthings) "big endian data is not supported"
         tz = trailing_zeros(numthings)
         return ParsedType(;
             julia_type = (Int8, Int16, Int32, Int64)[tz+1],
             type_size = numthings,
-            in_native_order,
         )
     elseif typechar == 'u'
         @argcheck numthings in 1:8
         @argcheck count_ones(numthings) == 1
-        @argcheck (byteorder in "<>") || isone(numthings)
-        in_native_order = (byteorder == NATIVE_ORDER) || isone(numthings)
+        @argcheck (byteorder == '<') || isone(numthings) "big endian data is not supported"
         tz = trailing_zeros(numthings)
         return ParsedType(;
             julia_type = (UInt8, UInt16, UInt32, UInt64)[tz+1],
             type_size = numthings,
-            in_native_order,
         )
     elseif typechar == 'f'
         @argcheck numthings in 2:8
         @argcheck count_ones(numthings) == 1
-        @argcheck byteorder in "<>"
-        in_native_order = (byteorder == NATIVE_ORDER)
+        @argcheck byteorder == '<' "big endian data is not supported"
         tz = trailing_zeros(numthings)
         return ParsedType(;
             julia_type = (Float16, Float32, Float64)[tz],
             type_size = numthings,
-            in_native_order,
         )
     elseif typechar == 'c'
         @argcheck numthings in 4:16
         @argcheck count_ones(numthings) == 1
-        @argcheck byteorder in "<>"
-        in_native_order = (byteorder == NATIVE_ORDER)
+        @argcheck byteorder == '<' "big endian data is not supported"
         tz = trailing_zeros(numthings)
         return ParsedType(;
             julia_type = (ComplexF16, ComplexF32, ComplexF64)[tz - 1],
             type_size = numthings,
-            in_native_order,
         )
     elseif typechar == 'V'
         return ParsedType(;
             julia_type = NTuple{numthings, UInt8},
             type_size = numthings,
-            in_native_order = true,
         )
     else
         error("Unreachable")
@@ -118,12 +103,7 @@ function parse_zarr_fill_value(fill_value::String, dtype::ParsedType)
     else
         zarr_bytes = Base64.base64decode(fill_value)
         @argcheck length(zarr_bytes) == dtype.type_size
-        v = reinterpret(dtype.julia_type, zarr_bytes)[1]
-        if dtype.in_native_order
-            v
-        else
-            htol(ntoh(v))
-        end
+        reinterpret(dtype.julia_type, zarr_bytes)[1]
     end
 end
 function parse_zarr_fill_value(fill_value::Nothing, dtype::ParsedType)

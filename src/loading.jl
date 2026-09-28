@@ -71,7 +71,6 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
                 metadata.dimension_separator,
                 keyname_dict,
                 reader,
-                metadata.dtype.in_native_order,
                 metadata.is_column_major,
                 metadata.compressor,
             )
@@ -94,7 +93,6 @@ function load_array(
         dimension_separator::Char,
         keyname_dict::Dict{String,Int},
         reader,
-        in_native_order::Bool,
         is_column_major::Bool,
         compressor,
     )::ZArray{T, N} where {T, N}
@@ -115,11 +113,6 @@ function load_array(
                     rawchunkdata,
                     compressor,
                 )
-                if !in_native_order
-                    for i in eachindex(decompressed_chunkdata)
-                        decompressed_chunkdata[i] = htol(ntoh(decompressed_chunkdata[i]))
-                    end
-                end
                 chunkstart = chunktuple .* chunks .+ 1
                 chunkstop = min.(chunkstart .+ chunks .- 1, shape)
                 real_chunksize = chunkstop .- chunkstart .+ 1
