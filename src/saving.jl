@@ -97,11 +97,17 @@ function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
         else
             reinterpret(reshape, UInt8, data)
         end
-        for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
+        chunkindices = CartesianIndices(Tuple(cld.(shape,chunks)))
+        for chunkidx in chunkindices
             chunktuple = Tuple(chunkidx) .- 1
             chunkstart = chunktuple .* chunks .+ 1
             chunkstop = min.(chunkstart .+ chunks .- 1, shape)
             real_chunksize = chunkstop .- chunkstart .+ 1
+            # zero out stale data from the previous chunk in partial edge chunks,
+            # the first chunk can skip this because shaped_chunkdata starts as zeros
+            if real_chunksize != chunks && chunkidx != first(chunkindices)
+                fill!(shaped_chunkdata, 0x00)
+            end
             # now create overlapping views
             array_view = view(shaped_array, :, (range.(chunkstart, chunkstop))...)
             chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
