@@ -1,7 +1,7 @@
 name = "SmallZarrGroups"
 uuid = "d423b6e5-1c84-4ae2-8d2d-b903aee15ac7"
+version = "0.8.13"
 authors = ["nhz2 <nhz2@cornell.edu>"]
-version = "0.8.12"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -20,7 +20,7 @@ AbstractTrees = "0.4"
 ArgCheck = "2"
 Base64 = "1.8"
 ChunkCodecCore = "1"
-ChunkCodecLibBlosc = "0.3"
+ChunkCodecLibBlosc = "1"
 ChunkCodecLibZlib = "1"
 DataStructures = "0.18, 0.19"
 JSON3 = "1"
