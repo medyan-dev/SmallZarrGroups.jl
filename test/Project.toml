@@ -9,6 +9,8 @@ SmallZarrGroups = "d423b6e5-1c84-4ae2-8d2d-b903aee15ac7"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+ZarrCore = "77f5b75c-4c08-499f-ba13-550b0a0af171"
+ZarrZip = "54bcf1c8-e61d-4e4f-b375-463581846cca"
 
 [sources]
 SmallZarrGroups = {path = ".."}

@@ -67,10 +67,11 @@ end
 
 function compare_jl_py_zarray(jl_zarray::SmallZarrGroups.ZArray, py_zarray)
     @test pyconvert(Dict, PyDict(py_zarray.attrs.asdict())) == Dict(attrs(jl_zarray))
-    # compare shapes
-    @test size(jl_zarray.data) == pyconvert(Tuple,py_zarray.shape)
+    # compare shapes, julia dimensions are reversed like in Zarr.jl
+    @test size(jl_zarray.data) == reverse(pyconvert(Tuple,py_zarray.shape))
     # test values equal
     py_data = Array(PyArray(py_zarray.get_basic_selection()))
+    py_data = permutedims(py_data, ndims(py_data):-1:1)
     if isequal(py_data, jl_zarray.data)
         @test isequal(py_data, jl_zarray.data)
     else
