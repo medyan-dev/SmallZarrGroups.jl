@@ -9,31 +9,31 @@ function write_type(io::IO, t::Type)
     elseif t <: Int8
         print(io, "\"|i1\"")
     elseif t <: Int16
-        print(io, "\"", NATIVE_ORDER, "i2\"")
+        print(io, "\"<i2\"")
     elseif t <: Int32
-        print(io, "\"", NATIVE_ORDER, "i4\"")
+        print(io, "\"<i4\"")
     elseif t <: Int64
-        print(io, "\"", NATIVE_ORDER, "i8\"")
+        print(io, "\"<i8\"")
     elseif t <: UInt8
         print(io, "\"|u1\"")
     elseif t <: UInt16
-        print(io, "\"", NATIVE_ORDER, "u2\"")
+        print(io, "\"<u2\"")
     elseif t <: UInt32
-        print(io, "\"", NATIVE_ORDER, "u4\"")
+        print(io, "\"<u4\"")
     elseif t <: UInt64
-        print(io, "\"", NATIVE_ORDER, "u8\"")
+        print(io, "\"<u8\"")
     elseif t <: Float16
-        print(io, "\"", NATIVE_ORDER, "f2\"")
+        print(io, "\"<f2\"")
     elseif t <: Float32
-        print(io, "\"", NATIVE_ORDER, "f4\"")
+        print(io, "\"<f4\"")
     elseif t <: Float64
-        print(io, "\"", NATIVE_ORDER, "f8\"")
+        print(io, "\"<f8\"")
     elseif t <: ComplexF16
-        print(io, "\"", NATIVE_ORDER, "c4\"")
+        print(io, "\"<c4\"")
     elseif t <: ComplexF32
-        print(io, "\"", NATIVE_ORDER, "c8\"")
+        print(io, "\"<c8\"")
     elseif t <: ComplexF64
-        print(io, "\"", NATIVE_ORDER, "c16\"")
+        print(io, "\"<c16\"")
     elseif t <: (NTuple{N,UInt8} where N)
         print(io, "\"|V", sizeof(t), "\"")
     else
