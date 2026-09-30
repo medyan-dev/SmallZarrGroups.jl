@@ -7,8 +7,6 @@ using ChunkCodecLibZstd: ZstdEncodeOptions, ZstdDecodeOptions
 const COMPRESSOR_NONE = Int32(0)
 const COMPRESSOR_ZSTD = Int32(1)
 
-const DEFAULT_COMPRESSOR = COMPRESSOR_ZSTD
-
 """
     level_range(type::Integer)::UnitRange{Int32}
 
