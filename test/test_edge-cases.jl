@@ -16,7 +16,8 @@ using Test
         gload = SmallZarrGroups.load_dir(path)
         @test length(keys(attrs(gload))) == length(keys(attrs(g)))
         @test attrs(gload)["foo"] == "bar"
-        @test attrs(gload)["2"] == 123
+        # All numbers are loaded as `Float64`.
+        @test attrs(gload)["2"] === 123.0
         @test attrs(gload)["weird-number"] === 1.5
         @test attrs(gload)["list"] == [1,2,3,4]
     end
@@ -63,7 +64,7 @@ end
     for shape in ((4,5), (2,5))
         g = ZGroup()
         data = reshape(Float64.(1:prod(shape)), shape)
-        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=nothing)
+        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=SmallZarrGroups.COMPRESSOR_NONE)
         mktempdir() do path
             SmallZarrGroups.save_dir(path, g)
             for i in 0:cld(shape[1],3)-1, j in 0:cld(shape[2],2)-1

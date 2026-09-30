@@ -19,7 +19,7 @@ In memory hierarchy of arrays and attributes loaded from disk or to be saved to 
 
 1. `ZGroup` represents a tree with arrays as leaves.
 1. `ZGroup` leaf arrays are uncompressed but store metadata about how they should be compressed when saved to disk.
-1. `ZGroup` can have JSON3 serializable attributes attached to any node or leaf.
+1. `ZGroup` can have JSON serializable attributes attached to any node or leaf.
 1. Data can be quickly accessed and modified in `ZGroup`.
 1. No file open close semantics. Use the Julia garbage collector to clean memory up.
 1. Save and load `ZGroup` in a directory or zip file in [Zarr v2 format](https://zarr.readthedocs.io/en/stable/spec/v2.html#).

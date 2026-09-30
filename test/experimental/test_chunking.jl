@@ -15,8 +15,8 @@ using Test
     end
 
     # one dim case default chunking
-    @test SmallZarrGroups.normalize_chunks(  -1, (0,), 0) == (0,)
-    @test SmallZarrGroups.normalize_chunks(  -1, (0,), 1) == (0,)
+    @test SmallZarrGroups.normalize_chunks(  -1, (0,), 0) == (1,)
+    @test SmallZarrGroups.normalize_chunks(  -1, (0,), 1) == (1,)
     @test SmallZarrGroups.normalize_chunks(  -1, (1,), 0) == (1,)
     @test SmallZarrGroups.normalize_chunks(  -1, (1,), 1) == (1,)
     @test SmallZarrGroups.normalize_chunks(  -1, (100,), 2^30) == (1,)
@@ -44,17 +44,17 @@ using Test
     for x in (0, :)
         @test SmallZarrGroups.normalize_chunks((x,), (1223,), 6) == (1223,)
         @test SmallZarrGroups.normalize_chunks(   x, (1223,), 6) == (1223,)
-        @test SmallZarrGroups.normalize_chunks(   x, (0,), 6) == (0,)
+        @test SmallZarrGroups.normalize_chunks(   x, (0,), 6) == (1,)
     end
 
     # two dim case default chunking
-    @test SmallZarrGroups.normalize_chunks(  -1, (0,0), 0) == (0,0)
-    @test SmallZarrGroups.normalize_chunks(  -1, (0,1), 0) == (0,1)
-    @test SmallZarrGroups.normalize_chunks(  -1, (1,0), 0) == (1,0)
+    @test SmallZarrGroups.normalize_chunks(  -1, (0,0), 0) == (1,1)
+    @test SmallZarrGroups.normalize_chunks(  -1, (0,1), 0) == (1,1)
+    @test SmallZarrGroups.normalize_chunks(  -1, (1,0), 0) == (1,1)
     @test SmallZarrGroups.normalize_chunks(  -1, (1,1), 0) == (1,1)
-    @test SmallZarrGroups.normalize_chunks(  -1, (0,0), 6) == (0,0)
-    @test SmallZarrGroups.normalize_chunks(  -1, (0,1), 6) == (0,1)
-    @test SmallZarrGroups.normalize_chunks(  -1, (1,0), 6) == (1,0)
+    @test SmallZarrGroups.normalize_chunks(  -1, (0,0), 6) == (1,1)
+    @test SmallZarrGroups.normalize_chunks(  -1, (0,1), 6) == (1,1)
+    @test SmallZarrGroups.normalize_chunks(  -1, (1,0), 6) == (1,1)
     @test SmallZarrGroups.normalize_chunks(  -1, (1,1), 6) == (1,1)
     @test SmallZarrGroups.normalize_chunks(  -1, (1,1), 2^30) == (1,1)
     @test SmallZarrGroups.normalize_chunks(  -1, (6,5), 2^30) == (1,1)
@@ -94,7 +94,7 @@ using Test
         @test SmallZarrGroups.normalize_chunks((x,423), (1223,532), 6) == (1223,423)
         @test SmallZarrGroups.normalize_chunks((x,x), (1223,532), 6) == (1223,532)
         @test SmallZarrGroups.normalize_chunks(   x, (1223,532), 6) == (1223,532)
-        @test SmallZarrGroups.normalize_chunks(   x, (0,532), 6) == (0,532)
+        @test SmallZarrGroups.normalize_chunks(   x, (0,532), 6) == (1,532)
     end
 end
 

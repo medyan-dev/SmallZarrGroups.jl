@@ -1,163 +1,187 @@
-# Parse zarr array meta data descriptions.
+# Parsing zarr array metadata.
 
-using ArgCheck
-import JSON3
 import Base64
 
 # Only little endian hosts and little endian zarr data are supported.
 @assert ENDIAN_BOM == 0x04030201 "SmallZarrGroups only supports little endian hosts"
 
-
-Base.@kwdef struct ParsedType
-    "Julia type that this type represents. This must be an isbits type"
-    julia_type::DataType
-
-    "Number of bytes the type takes."
-    type_size::Int64
-end
-
-function Base.:(==)(a::ParsedType, b::ParsedType)
-    all(x->isequal(x...), ((getfield(a, k),getfield(b, k)) for k ∈ fieldnames(ParsedType)))
-end
-
 """
-Parse a basic zarr typestr.
+    parse_zarr_dtype(typestr::String)::DataType
+
+Return the Julia type of a zarr dtype string, for example `Float64` for `"<f8"`.
 """
-function parse_zarr_type(typestr::String; silence_warnings=false)::ParsedType
+function parse_zarr_dtype(typestr::String)::DataType
+    @argcheck length(typestr) ≥ 3
     byteorder = typestr[1]
     typechar = typestr[2]
-    # note need to strip non digits because of datetime units
-    # This is usually the number of bytes, but if typechar is 'U' it is number of bytes/4 for some stupid reason.
-    numthings = parse(Int,rstrip(!isdigit, typestr[3:end]))
-    units = lstrip(isdigit, typestr[3:end])[begin+1:end-1]
     @argcheck byteorder in "<>|"
     @argcheck typechar in "biufcV"
-    @argcheck numthings ≥ 0
-    # actual number of bytes
+    n = parse(Int, typestr[3:end]) # number of bytes
+    @argcheck n ≥ 0
     if typechar == 'b'
-        @argcheck numthings == 1
-        return ParsedType(;
-            julia_type = Bool,
-            type_size = 1,
-        )
+        @argcheck n == 1
+        Bool
     elseif typechar == 'i'
-        @argcheck numthings in 1:8
-        @argcheck count_ones(numthings) == 1
-        @argcheck (byteorder == '<') || isone(numthings) "big endian data is not supported"
-        tz = trailing_zeros(numthings)
-        return ParsedType(;
-            julia_type = (Int8, Int16, Int32, Int64)[tz+1],
-            type_size = numthings,
-        )
+        @argcheck n in (1, 2, 4, 8)
+        @argcheck byteorder == '<' || n == 1 "big endian data is not supported"
+        (Int8, Int16, Int32, Int64)[trailing_zeros(n) + 1]
     elseif typechar == 'u'
-        @argcheck numthings in 1:8
-        @argcheck count_ones(numthings) == 1
-        @argcheck (byteorder == '<') || isone(numthings) "big endian data is not supported"
-        tz = trailing_zeros(numthings)
-        return ParsedType(;
-            julia_type = (UInt8, UInt16, UInt32, UInt64)[tz+1],
-            type_size = numthings,
-        )
+        @argcheck n in (1, 2, 4, 8)
+        @argcheck byteorder == '<' || n == 1 "big endian data is not supported"
+        (UInt8, UInt16, UInt32, UInt64)[trailing_zeros(n) + 1]
     elseif typechar == 'f'
-        @argcheck numthings in 2:8
-        @argcheck count_ones(numthings) == 1
+        @argcheck n in (2, 4, 8)
         @argcheck byteorder == '<' "big endian data is not supported"
-        tz = trailing_zeros(numthings)
-        return ParsedType(;
-            julia_type = (Float16, Float32, Float64)[tz],
-            type_size = numthings,
-        )
+        (Float16, Float32, Float64)[trailing_zeros(n)]
     elseif typechar == 'c'
-        @argcheck numthings in 4:16
-        @argcheck count_ones(numthings) == 1
+        @argcheck n in (4, 8, 16)
         @argcheck byteorder == '<' "big endian data is not supported"
-        tz = trailing_zeros(numthings)
-        return ParsedType(;
-            julia_type = (ComplexF16, ComplexF32, ComplexF64)[tz - 1],
-            type_size = numthings,
-        )
-    elseif typechar == 'V'
-        return ParsedType(;
-            julia_type = NTuple{numthings, UInt8},
-            type_size = numthings,
-        )
-    else
-        error("Unreachable")
+        (ComplexF16, ComplexF32, ComplexF64)[trailing_zeros(n) - 1]
+    else # typechar == 'V'
+        NTuple{n, UInt8}
     end
 end
 
 """
-Parse a structured zarr typestr
+Return the `T` with all zero bytes.
 """
-function parse_zarr_type(descr::JSON3.Array; silence_warnings=false)::ParsedType
-    error("Structured types not supported")
-end
-
+zero_fill(::Type{T}) where {T<:Number} = zero(T)
+zero_fill(::Type{NTuple{N, UInt8}}) where {N} = ntuple(Returns(0x00), Val(N))
 
 """
-Return the fill value in the julia type.
+    parse_zarr_fill_value(::Type{T}, fill_value)::T
+
+Return the JSON `fill_value` of an array with element type `T`.
 """
-function parse_zarr_fill_value(fill_value::String, dtype::ParsedType)
-    if (fill_value in ("NaN","Infinity","-Infinity")) && (dtype.julia_type <: AbstractFloat)
-        parse(dtype.julia_type, fill_value)
+function parse_zarr_fill_value(::Type{T}, fill_value::String)::T where {T}
+    if T <: AbstractFloat && fill_value == "NaN"
+        convert(T, NaN)
+    elseif T <: AbstractFloat && fill_value == "Infinity"
+        convert(T, Inf)
+    elseif T <: AbstractFloat && fill_value == "-Infinity"
+        convert(T, -Inf)
     else
-        zarr_bytes = Base64.base64decode(fill_value)
-        @argcheck length(zarr_bytes) == dtype.type_size
-        reinterpret(dtype.julia_type, zarr_bytes)[1]
+        # Base64 encoded little endian bytes.
+        bytes = Base64.base64decode(fill_value)
+        @argcheck length(bytes) == sizeof(T)
+        sizeof(T) == 0 ? reinterpret(T, ()) : only(reinterpret(T, bytes))
     end
 end
-function parse_zarr_fill_value(fill_value::Nothing, dtype::ParsedType)
-    reinterpret(dtype.julia_type, zeros(UInt8, dtype.type_size))[1]
-end
-function parse_zarr_fill_value(fill_value::Union{Bool,Float64,Int64}, dtype::ParsedType)
-    if iszero(fill_value) # If its zero just set all bytes to zero.
-        reinterpret(dtype.julia_type, zeros(UInt8, dtype.type_size))[1]
+function parse_zarr_fill_value(::Type{T}, fill_value::Union{Nothing, Real})::T where {T}
+    if isnothing(fill_value) || iszero(fill_value)
+        zero_fill(T)
     else
-        convert(dtype.julia_type, fill_value)
+        convert(T, fill_value)
     end
 end
+# zarr-python writes complex fill values as a list of the real and imaginary parts.
+function parse_zarr_fill_value(::Type{Complex{T}}, fill_value::AbstractVector)::Complex{T} where {T}
+    @argcheck length(fill_value) == 2
+    Complex{T}(parse_zarr_fill_value(T, fill_value[1]), parse_zarr_fill_value(T, fill_value[2]))
+end
+function parse_zarr_fill_value(::Type{T}, fill_value)::T where {T}
+    throw(ArgumentError("fill_value $(repr(fill_value)) is not supported"))
+end
 
-
-"""
-Zarr Version 2 Array meta data
-https://zarr.readthedocs.io/en/stable/spec/v2.html#arrays
-"""
-Base.@kwdef struct ParsedMetaData
+# The contents of a `.zarray` file, before validation.
+# https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html#arrays
+# Unknown keys are ignored.
+# `fill_value` has type `Any` because it is parsed after the dtype is known.
+# Parsing is lenient
+JSON.@defaults struct CompressorJSON
+    id::String
+    level::Union{Nothing, Int} = nothing # zlib and gzip
+    clevel::Union{Nothing, Int} = nothing # blosc
+end
+JSON.@defaults struct FilterJSON
+    id::String
+    elementsize::Union{Nothing, Int} = nothing
+end
+JSON.@defaults struct ZarrayJSON
+    zarr_format::Int
     shape::Vector{Int}
     chunks::Vector{Int}
-    dtype::ParsedType
-    compressor::Union{Nothing, JSON3.Object}
+    dtype::String
     fill_value::Any
-    is_column_major::Bool
-    dimension_separator::Char='.'
+    order::Char
+    compressor::Union{Nothing, CompressorJSON}
+    filters::Union{Nothing, Vector{FilterJSON}}
+    dimension_separator::Char = '.'
 end
 
-function parse_zarr_metadata(metadata::JSON3.Object)::ParsedMetaData
-    @argcheck metadata["zarr_format"] == 2
-    shape = collect(Int, metadata["shape"])
-    chunks = collect(Int, metadata["chunks"])
-    @argcheck length(shape)==length(chunks)
-    @argcheck all(≥(0), shape)
-    @argcheck all(≥(0), chunks)
-    if all(>(0), shape)
-        @argcheck all(>(0), chunks)
+"""
+Validated `.zarray` metadata, with `shape` and `chunks` in Julia order.
+Chunk sizes are at least 1.
+"""
+struct ZarrayMetadata
+    dtype::DataType
+    shape::Vector{Int}
+    chunks::Vector{Int}
+    fill_value::Any
+    dimension_separator::Char
+    compressor::CompressorOptions
+end
+
+"""
+    parse_zarray(bytes::Vector{UInt8})::ZarrayMetadata
+
+Parse and validate the contents of a `.zarray` file.
+
+Out of range values that are only used for encoding, like the compression level, are clamped instead of rejected.
+"""
+function parse_zarray(bytes::Vector{UInt8})::ZarrayMetadata
+    z = JSON.parse(bytes, ZarrayJSON)
+    @argcheck z.zarr_format == 2
+    @argcheck length(z.shape) == length(z.chunks)
+    @argcheck all(≥(0), z.shape)
+    @argcheck all(≥(0), z.chunks)
+    if all(>(0), z.shape)
+        @argcheck all(>(0), z.chunks)
     end
-    dtype = parse_zarr_type(metadata["dtype"])
-    compressor = metadata["compressor"]
-    filters = metadata["filters"]
-    @argcheck isnothing(filters) || isempty(filters)
-    fill_value = parse_zarr_fill_value(metadata["fill_value"], dtype)
-    order = metadata["order"]
-    @argcheck order in ("C", "F")
-    is_column_major = order == "F"
-    dimension_separator = get(Returns("."), metadata, "dimension_separator")[1]
-    ParsedMetaData(;
-        shape,
-        chunks,
-        dtype,
-        compressor,
-        fill_value,
-        is_column_major,
-        dimension_separator,
-    )
+    @argcheck z.order ∈ ('C', 'F')
+    @argcheck z.dimension_separator ∈ ('.', '/')
+    dtype = parse_zarr_dtype(z.dtype)
+    itemsize = sizeof(dtype)
+    type, level = parse_compressor(z.compressor)
+    compressor = CompressorOptions(type, level, itemsize, z.order == 'F', parse_byteshuffle(z.filters, itemsize))
+    # Chunk sizes of 0 are only allowed in arrays with no elements, where chunks aren't read,
+    # so they are normalized to 1.
+    z.chunks .= max.(z.chunks, 1)
+    # Like Zarr.jl, dimensions are reversed so that the
+    # fastest changing dimension is first in Julia.
+    ZarrayMetadata(dtype, reverse!(z.shape), reverse!(z.chunks), z.fill_value, z.dimension_separator, compressor)
+end
+
+"""
+Return the compressor type and level.
+
+Blosc with any internal compressor becomes `COMPRESSOR_BLOSC_LZ4`.
+The level is the default level if it is missing or `null`.
+Out of range levels are clamped by the `CompressorOptions` constructor.
+"""
+function parse_compressor(c::Union{Nothing, CompressorJSON})::Tuple{Int32, Int}
+    isnothing(c) && return (COMPRESSOR_NONE, 0)
+    type, level = if c.id == "zlib"
+        COMPRESSOR_ZLIB, c.level
+    elseif c.id == "gzip"
+        COMPRESSOR_GZIP, c.level
+    elseif c.id == "blosc"
+        COMPRESSOR_BLOSC_LZ4, c.clevel
+    else
+        throw(ArgumentError("$(c.id) compressor not supported yet"))
+    end
+    type, something(level, default_level(type))
+end
+
+"""
+Return `true` if the filters are the byte shuffle filter, `false` if there are no filters.
+Any other filters are not supported.
+"""
+function parse_byteshuffle(filters::Union{Nothing, Vector{FilterJSON}}, itemsize::Int)::Bool
+    (isnothing(filters) || isempty(filters)) && return false
+    @argcheck length(filters) == 1 "only a single shuffle filter is supported"
+    filter = only(filters)
+    @argcheck filter.id == "shuffle" "$(filter.id) filter not supported"
+    @argcheck filter.elementsize == itemsize "shuffle elementsize not equal to the dtype size is not supported"
+    true
 end

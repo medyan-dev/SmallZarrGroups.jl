@@ -2,9 +2,9 @@
     ZGroup()
 Represents a tree with `ZArray` leaves.
 
-Can have JSON3 serializable attributes attached to any node or leaf.
+Can have JSON serializable attributes attached to any node or leaf.
 """
-Base.@kwdef struct ZGroup
+Base.@kwdef mutable struct ZGroup
     children::SortedDict{String,Union{ZArray,ZGroup}} = SortedDict{String,Union{ZArray,ZGroup}}()
     attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()
 end

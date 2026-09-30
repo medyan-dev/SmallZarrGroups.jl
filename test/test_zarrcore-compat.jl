@@ -17,11 +17,11 @@ function uncompressed_test_group()
     g = ZGroup()
     for T in ZARRCORE_TYPES
         tg = ZGroup()
-        tg["zero_dim"] = SmallZarrGroups.ZArray(fill(one(T)); compressor=nothing)
-        tg["one_dim"] = SmallZarrGroups.ZArray(rand(T, 7); chunks=(3,), compressor=nothing)
-        tg["two_dim"] = SmallZarrGroups.ZArray(rand(T, 4, 5); chunks=(3, 2), compressor=nothing)
-        tg["three_dim"] = SmallZarrGroups.ZArray(rand(T, 2, 3, 5); chunks=(2, 2, 3), compressor=nothing)
-        tg["one_chunk"] = SmallZarrGroups.ZArray(rand(T, 3, 4); chunks=:, compressor=nothing)
+        tg["zero_dim"] = SmallZarrGroups.ZArray(fill(one(T)); compressor=SmallZarrGroups.COMPRESSOR_NONE)
+        tg["one_dim"] = SmallZarrGroups.ZArray(rand(T, 7); chunks=(3,), compressor=SmallZarrGroups.COMPRESSOR_NONE)
+        tg["two_dim"] = SmallZarrGroups.ZArray(rand(T, 4, 5); chunks=(3, 2), compressor=SmallZarrGroups.COMPRESSOR_NONE)
+        tg["three_dim"] = SmallZarrGroups.ZArray(rand(T, 2, 3, 5); chunks=(2, 2, 3), compressor=SmallZarrGroups.COMPRESSOR_NONE)
+        tg["one_chunk"] = SmallZarrGroups.ZArray(rand(T, 3, 4); chunks=:, compressor=SmallZarrGroups.COMPRESSOR_NONE)
         g[string(T)] = tg
     end
     g

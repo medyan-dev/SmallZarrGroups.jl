@@ -44,13 +44,13 @@ function save_zip(io::IO, z::ZGroup)::Nothing
 end
 
 """
-save attributes using JSON3
+Save the attributes as JSON, if there are any.
 """
 function _save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray,ZGroup})
     if isempty(attrs(z))
         return
     end
-    write_key(writer, key_prefix*".zattrs", codeunits(JSON3.write(attrs(z); allow_inf=true)))
+    write_key(writer, key_prefix*".zattrs", codeunits(JSON.json(attrs(z); allownan=true)))
     return
 end
 
@@ -76,61 +76,22 @@ function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
 end
 
 
-function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray)
+"""
+Save the chunks and metadata of `z`.
+
+Dispatching on `ZArray{T,N}` is the function barrier where `T` and `N` become static.
+"""
+function _save_zarray(writer::AbstractWriter, key_prefix::String, z::ZArray{T,N}) where {T, N}
     _save_attrs(writer, key_prefix, z)
-    # Get type info
     data = getarray(z)
-    dtype_str::String = sprint(write_type, eltype(data))
-    dtype::ParsedType = parse_zarr_type(JSON3.read(dtype_str))
-    @assert dtype.julia_type == eltype(data)
-    shape = size(data)
-    zarr_size = dtype.type_size
-    norm_compressor = normalize_compressor(z.compressor)
-    if zarr_size != 0 && !any(iszero, shape)
-        chunks = Tuple(z.chunks)
-        # store chunks
-        # Like Zarr.jl, dimensions are reversed so that "C" order
-        # chunk data matches Julia's column major memory layout.
-        shaped_chunkdata = zeros(UInt8, zarr_size, chunks...)
-        shaped_array = if zarr_size == 1
-            reshape(reinterpret(reshape, UInt8, data), 1, shape...)
-        else
-            reinterpret(reshape, UInt8, data)
-        end
-        chunkindices = CartesianIndices(Tuple(cld.(shape,chunks)))
-        for chunkidx in chunkindices
-            chunktuple = Tuple(chunkidx) .- 1
-            chunkstart = chunktuple .* chunks .+ 1
-            chunkstop = min.(chunkstart .+ chunks .- 1, shape)
-            real_chunksize = chunkstop .- chunkstart .+ 1
-            # zero out stale data from the previous chunk in partial edge chunks,
-            # the first chunk can skip this because shaped_chunkdata starts as zeros
-            if real_chunksize != chunks && chunkidx != first(chunkindices)
-                fill!(shaped_chunkdata, 0x00)
-            end
-            # now create overlapping views
-            array_view = view(shaped_array, :, (range.(chunkstart, chunkstop))...)
-            chunk_view = view(shaped_chunkdata, :, (range.(1, real_chunksize))...)
-            copy!(chunk_view, array_view)
-            compressed_chunkdata = compress(norm_compressor, reshape(shaped_chunkdata,:), zarr_size)
-            # empty chunk has name "0" this is the case for zero dim arrays
-            chunkname = key_prefix*(isempty(chunktuple) ? "0" : join(reverse(chunktuple), '.'))
-            write_key(writer, chunkname, compressed_chunkdata)
+    c = z.compressor
+    # If there is no actual data don't save chunks
+    if sizeof(T) != 0 && !any(iszero, size(data))
+        chunk = Vector{UInt8}(undef, chunk_nbytes(sizeof(T), z.chunks))
+        for index in CartesianIndices(cld.(size(data), z.chunks))
+            copy_to_chunk!(chunk, data, z.chunks, c.reverse_dims, index)
+            write_key(writer, key_prefix*chunk_key(index, '.'), encode_chunk(c, chunk))
         end
     end
-    # store array meta data
-    write_key(writer, key_prefix*".zarray",
-        codeunits("""
-        {
-            "chunks": [$(join(reverse(z.chunks), ", "))],
-            "compressor": $(JSON3.write(norm_compressor; allow_inf=true)),
-            "dtype": $dtype_str,
-            "fill_value": null,
-            "filters": null,
-            "order": "C",
-            "shape": [$(join(reverse(shape), ", "))],
-            "zarr_format": 2
-        }
-        """)
-    )
+    write_key(writer, key_prefix*".zarray", zarray_json(T, size(data), z.chunks, c))
 end

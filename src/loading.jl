@@ -28,13 +28,11 @@ function load_zip(data::Vector{UInt8}; predicate=Returns(true))::ZGroup
 end
 
 
-function try_add_attrs!(zthing::Union{ZGroup, ZArray}, reader::AbstractReader, keyname_dict,  key_prefix)
+function try_add_attrs!(@nospecialize(zthing::Union{ZGroup, ZArray}), reader::AbstractReader, keyname_dict,  key_prefix)
     attrsidx = get(Returns(0), keyname_dict, key_prefix*".zattrs")
     if attrsidx > 0
-        jsonobj = JSON3.read(read_key_idx(reader,attrsidx); allow_inf=true)
-        foreach(pairs(jsonobj)) do (k,v)
-            attrs(zthing)[string(k)] = v
-        end
+        # With `allownan=true`, JSON.jl parses all untyped numbers as `Float64`.
+        zthing.attrs = JSON.parse(read_key_idx(reader, attrsidx), OrderedDict{String,Any}; allownan=true)
     end
 end
 
@@ -60,24 +58,8 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
             try_add_attrs!(group, reader, keyname_dict, groupname*"/")
         elseif splitkey[end] == ".zarray"
             arrayname = join(splitkey[begin:end-1],'/')
-            arrayidx = keyname_dict[arrayname*"/.zarray"]
-            metadata = parse_zarr_metadata(JSON3.read(read_key_idx(reader, arrayidx)))
-            fill_value = metadata.fill_value
-            # Like Zarr.jl, dimensions are reversed so that the
-            # fastest changing dimension is first in Julia.
-            zarray = load_array(
-                fill_value,
-                Tuple(reverse(metadata.shape)),
-                Tuple(reverse(metadata.chunks)),
-                arrayname,
-                metadata.dimension_separator,
-                keyname_dict,
-                reader,
-                metadata.is_column_major,
-                metadata.compressor,
-            )
-
-
+            meta = parse_zarray(read_key_idx(reader, keyname_dict[arrayname*"/.zarray"]))
+            zarray = load_array(meta.dtype, Val(length(meta.shape)), meta, arrayname, keyname_dict, reader)
             output[arrayname] = zarray
 
             try_add_attrs!(zarray, reader, keyname_dict, arrayname*"/")
@@ -87,55 +69,29 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
 end
 
 
+"""
+Load the chunks of the array described by `meta`.
+
+This is the function barrier where the element type `T` and number of dimensions `N` become static.
+"""
 function load_array(
-        fill_value::T,
-        shape::NTuple{N, Int},
-        chunks::NTuple{N, Int},
-        arrayname::String,
-        dimension_separator::Char,
-        keyname_dict::Dict{String,Int},
-        reader,
-        is_column_major::Bool,
-        compressor,
-    )::ZArray{T, N} where {T, N}
-    array = fill(fill_value, shape...)
+        ::Type{T}, ::Val{N}, meta::ZarrayMetadata,
+        arrayname::String, keyname_dict::Dict{String,Int}, reader,
+    )::ZArray{T,N} where {T, N}
+    shape = ntuple(i -> meta.shape[i], Val(N))
+    chunks = ntuple(i -> meta.chunks[i], Val(N))
+    c = meta.compressor
+    data = fill(parse_zarr_fill_value(T, meta.fill_value), shape)
     # If there is no actual data don't load chunks
-    if !(any(==(0), shape) || sizeof(T) == 0)
-        # load chunks
-        for chunkidx in CartesianIndices(Tuple(cld.(shape,chunks)))
-            chunktuple = Tuple(chunkidx) .- 1
-            # empty chunk has name "0" this is the case for zero dim arrays
-            chunkname = arrayname*"/"*(isempty(chunktuple) ? "0" : join(reverse(chunktuple), dimension_separator))
-            chunknameidx = get(Returns(0), keyname_dict, chunkname)
-            if chunknameidx > 0
-                rawchunkdata = read_key_idx(reader, chunknameidx)
-                decompressed_chunkdata = Vector{T}(undef, prod(chunks))
-                decompress!(
-                    reinterpret(UInt8, decompressed_chunkdata),
-                    rawchunkdata,
-                    compressor,
-                )
-                chunkstart = chunktuple .* chunks .+ 1
-                chunkstop = min.(chunkstart .+ chunks .- 1, shape)
-                real_chunksize = chunkstop .- chunkstart .+ 1
-                
-                shaped_chunkdata = if !is_column_major || N ≤ 1
-                    reshape(decompressed_chunkdata, chunks...)
-                else
-                    permutedims(reshape(decompressed_chunkdata, reverse(chunks)...), ((N:-1:1)...,))
-                end
-                copyto!(
-                    array,
-                    CartesianIndices(((range.(chunkstart, chunkstop))...,)),
-                    shaped_chunkdata,
-                    CartesianIndices(((range.(1, real_chunksize))...,))
-                )
-            end
+    if sizeof(T) != 0 && !any(iszero, shape)
+        chunk = Vector{UInt8}(undef, chunk_nbytes(sizeof(T), chunks))
+        for index in CartesianIndices(cld.(shape, chunks))
+            key_idx = get(keyname_dict, arrayname*"/"*chunk_key(index, meta.dimension_separator), 0)
+            # Missing chunks are left as the fill value.
+            iszero(key_idx) && continue
+            decode_chunk!(chunk, c, read_key_idx(reader, key_idx))
+            copy_from_chunk!(data, chunk, chunks, c.reverse_dims, index)
         end
     end
-
-    ZArray(array;
-        chunks,
-        compressor,
-    )
+    ZArray(data, chunks, c)
 end

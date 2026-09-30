@@ -1,14 +1,4 @@
 
-
-const DEFAULT_COMPRESSOR = JSON3.read("""{
-        "blocksize": 0,
-        "clevel": 5,
-        "cname": "lz4",
-        "id": "blosc",
-        "shuffle": 1
-    }""")
-
-
 const ZDataTypes = Union{
     Bool,
     Int8,
@@ -35,6 +25,8 @@ function isvalidtype(T::Type)::Bool
 end
 
 """
+    ZArray(data::Array{T,N}; kwargs...)
+
 Create a ZArray.
 
 This is just a view of a regular Array with added metadata.
@@ -52,42 +44,56 @@ array after creating the ZArray.
     If `chunks` is a single element, that value will be used for all dimensions. 
     If `chunks` is `-1`, chunk size will be guessed for balanced random and sequential read performance.
     If `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
-- `compressor::String = "default"`:
-    Only blosc and no compression are supported.
-    If `"default"`, `DEFAULT_COMPRESSOR` will be used.
-    If `nothing`, no compressor will be used.
-    Otherwise, `compressor` must be a json3 object that can be understood by numcodecs https://github.com/zarr-developers/numcodecs
-- `attrs::SortedDict{String,Any}=SortedDict{String,Any}()`:
-    JSON3 encodable metadata, not copied on construction. 
+    Chunk sizes are at least 1, including for zero length dimensions.
+- `compressor::Integer = DEFAULT_COMPRESSOR`:
+    One of `COMPRESSOR_NONE`, `COMPRESSOR_ZLIB`, `COMPRESSOR_GZIP`, or `COMPRESSOR_BLOSC_LZ4`.
+    Ignored for zero dimensional arrays, which like in zarr-python are not compressed.
+- `level::Integer = default_level(compressor)`:
+    Compression level, clamped to `level_range(compressor)`.
+- `reverse_dims::Bool = false`:
+    If `true`, chunks are stored with dimensions reversed relative to Julia's memory layout, Zarr `"F"` order.
+    Ignored for zero dimensional arrays.
+- `byteshuffle::Bool = false`:
+    If `true`, the numcodecs shuffle filter is applied before compressing.
+    Ignored for 1 byte element types and zero dimensional arrays, where shuffling does nothing.
+- `attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()`:
+    JSON encodable metadata, not copied on construction. 
     This can be modified after creating the ZArray.
 """
 mutable struct ZArray{T,N} <: AbstractArray{T,N}
     data::Array{T,N}
-    chunks::Vector{Int}
-    compressor::Union{Nothing, JSON3.Object}
-
+    chunks::NTuple{N,Int}
+    compressor::CompressorOptions
     attrs::OrderedDict{String,Any}
-    function ZArray(data::Array{T,N};
-            chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1,
-            compressor::Union{Nothing, JSON3.Object}=DEFAULT_COMPRESSOR,
+    function ZArray(
+            data::Array{T,N},
+            chunks::NTuple{N,Int},
+            compressor::CompressorOptions;
             attrs=OrderedDict{String,Any}(),
         ) where {T, N}
-        @argcheck isvalidtype(T)
-        real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-        new{T,N}(data, real_chunks, compressor, attrs)
+        @assert isvalidtype(T)
+        @assert all(≥(1), chunks)
+        @assert compressor.itemsize == sizeof(T)
+        new{T,N}(data, chunks, compressor, attrs)
     end
 end
 
-"""
-Change the array in za.
-This doesn't copy the array, so don't resize the array after calling this function.
-"""
-function setarray!(za::ZArray, data::Array{T,N}; chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1) where {T, N}
+function ZArray(data::Array{T,N};
+        chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1,
+        compressor::Integer=DEFAULT_COMPRESSOR,
+        level::Integer=default_level(compressor),
+        reverse_dims::Bool=false,
+        byteshuffle::Bool=false,
+        attrs=OrderedDict{String,Any}(),
+    ) where {T, N}
     @argcheck isvalidtype(T)
-    real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-    za.chunks = real_chunks
-    za.data = data
-    za
+    c = CompressorOptions(compressor, level, sizeof(T), reverse_dims, byteshuffle)
+    if N == 0
+        # Like zarr-python, zero dimensional arrays are not compressed.
+        # Shuffling and reversing dimensions also do nothing to a single element.
+        c = CompressorOptions(COMPRESSOR_NONE, 0, sizeof(T), false, false)
+    end
+    ZArray(data, normalize_chunks(chunks, size(data), sizeof(T)), c; attrs)
 end
 
 """
@@ -127,15 +133,6 @@ Return the mutable SortedDict of attributes.
 """
 attrs(za::ZArray) = za.attrs
 
-"""
-Set the compressor.
-"""
-function set_compressor!(za::ZArray, compressor::Union{Nothing, JSON3.Object}=DEFAULT_COMPRESSOR)
-    za.compressor = compressor
-end
-
-get_compressor!(za::ZArray)::Union{Nothing, JSON3.Object} = za.compressor
-
 
 """
 Return a normalized chunk size.
@@ -147,13 +144,15 @@ Return a normalized chunk size.
     If an element of `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
 - `size::NTuple{N,Int}`: array size.
 - `elsize::Int`: sizeof array elements in bytes.
+
+Chunk sizes are at least 1, including for zero length dimensions.
 """
 function normalize_chunks(
         chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}},
         size::NTuple{N,Int},
         elsize::Int, #in bytes
     )::NTuple{N,Int} where {N}
-    if chunks == -1
+    raw_chunks::NTuple{N,Int} = if chunks == -1
         # Balanced chunking
         # guess chunk size for strictly negative dims.
         # From https://www.pytables.org/usersguide/optimization.html
@@ -223,4 +222,5 @@ function normalize_chunks(
         @argcheck all(≥(0), expanded_chunks)
         expanded_chunks
     end
+    max.(raw_chunks, 1)
 end
