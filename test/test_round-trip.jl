@@ -141,7 +141,7 @@ end
     for reverse_dims in (false, true), byteshuffle in (false, true), T in ELEMENT_TYPES
         g = ZGroup()
         for (i, (shape, chunks)) in enumerate(SHAPES)
-            g["$i"] = ZArray(rand(T, shape); chunks, reverse_dims, byteshuffle)
+            g["$i"] = ZArray(rand(T, shape); chunks, compressor=COMPRESSOR_ZSTD, reverse_dims, byteshuffle)
         end
         test_round_trip(g; python=(T ∉ NOT_PYTHON_TYPES))
     end
