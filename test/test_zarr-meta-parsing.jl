@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: parse_zarr_dtype, parse_zarr_fill_value, parse_zarray, CompressorOptions
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
 using JSON
 using Test
 
@@ -133,6 +133,11 @@ end
         @test (c.type, c.level) == (COMPRESSOR_ZLIB, 3)
         c = compressor(Dict("id" => "gzip", "level" => -1))
         @test (c.type, c.level) == (COMPRESSOR_GZIP, -1)
+        # The zstd checksum option is ignored.
+        c = compressor(Dict("id" => "zstd", "level" => -100, "checksum" => true))
+        @test (c.type, c.level) == (COMPRESSOR_ZSTD, -100)
+        @test compressor(Dict("id" => "zstd")).level == 1
+        @test compressor(Dict("id" => "zstd", "level" => 100)).level == 22
         # Any blosc becomes lz4, and blosc's internal shuffle is ignored.
         c = compressor(Dict("id" => "blosc", "cname" => "zstd", "clevel" => 7, "shuffle" => 2, "blocksize" => 64))
         @test c == CompressorOptions(COMPRESSOR_BLOSC_LZ4, 7, 8, false, false)

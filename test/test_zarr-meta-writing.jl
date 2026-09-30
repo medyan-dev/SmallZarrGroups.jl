@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: append_zarr_dtype!, append_int!, zarray_json, parse_zarray, CompressorOptions, level_range
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
 using Random
 using Test
 
@@ -49,13 +49,14 @@ end
         """{"zarr_format":2,"fill_value":null,"chunks":[],"order":"F","filters":[{"id":"shuffle","elementsize":2}],""" *
         """"compressor":{"id":"zlib","level":-1},"shape":[],"dtype":"<i2"}"""
     @test occursin("\"compressor\":{\"id\":\"gzip\",\"level\":9},", String(zarray_json(UInt8, (1,), (1,), CompressorOptions(COMPRESSOR_GZIP, 9, 1, false, false))))
+    @test occursin("\"compressor\":{\"id\":\"zstd\",\"level\":-131072},", String(zarray_json(UInt8, (1,), (1,), CompressorOptions(COMPRESSOR_ZSTD, -131072, 1, false, false))))
     @test occursin("\"compressor\":null,", String(zarray_json(UInt8, (1,), (1,), CompressorOptions(COMPRESSOR_NONE, 0, 1, false, false))))
     # no filter is written when shuffling does nothing
     @test occursin("\"filters\":null,", String(zarray_json(UInt8, (1,), (1,), CompressorOptions(COMPRESSOR_NONE, 0, 1, false, true))))
 end
 
 @testset "parse_zarray reads what zarray_json writes" begin
-    for type in (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4),
+    for type in (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD),
             level in extrema(level_range(type)),
             reverse_dims in (false, true),
             byteshuffle in (false, true),
@@ -78,6 +79,7 @@ end
         (ComplexF16, (10, 1, 100), (3, 1, 7), CompressorOptions(COMPRESSOR_ZLIB, 0, 4, true, false)),
         (Bool, (1, 2, 3, 4), (4, 3, 2, 1), CompressorOptions(COMPRESSOR_NONE, 0, 1, true, true)),
         (Float16, (9, 10, 99, 100, 999, 1000), (1, 9, 10, 99, 100, 999), CompressorOptions(COMPRESSOR_GZIP, 5, 2, false, false)),
+        (Float64, (3, 4), (2, 2), CompressorOptions(COMPRESSOR_ZSTD, 1, 8, false, true)),
     ]
     rng = Xoshiro(1234)
     types = [Bool, Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64,
@@ -85,7 +87,7 @@ end
     rand_dim(rng, lo) = rand(rng, Bool) ? rand(rng, lo:10) : rand(rng, lo:typemax(Int))
     for _ in 1:200000
         T = rand(rng, types)
-        type = rand(rng, (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4))
+        type = rand(rng, (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD))
         c = CompressorOptions(type, rand(rng, level_range(type)), sizeof(T), rand(rng, Bool), rand(rng, Bool))
         N = rand(rng, 0:5)
         push!(cases, (T, ntuple(_ -> rand_dim(rng, 0), N), ntuple(_ -> rand_dim(rng, 1), N), c))

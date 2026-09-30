@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: ZArray, CompressorOptions, normalize_chunks
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_BLOSC_LZ4, DEFAULT_COMPRESSOR
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD, DEFAULT_COMPRESSOR
 using DataStructures: OrderedDict
 using Test
 
@@ -9,8 +9,8 @@ using Test
     z = ZArray(data)
     @test parent(z) === data
     @test z.chunks == normalize_chunks(-1, size(data), 4)
-    @test z.compressor == CompressorOptions(DEFAULT_COMPRESSOR, 5, 4, false, false)
-    @test DEFAULT_COMPRESSOR == COMPRESSOR_BLOSC_LZ4
+    @test z.compressor == CompressorOptions(COMPRESSOR_ZSTD, 1, 4, false, true)
+    @test DEFAULT_COMPRESSOR == COMPRESSOR_ZSTD
     @test isempty(attrs(z))
 
     a = OrderedDict{String,Any}("foo" => 1)
@@ -28,13 +28,14 @@ using Test
     # zero dimensional arrays are not compressed, shuffled, or reversed
     @test ZArray(fill(1.5); compressor=COMPRESSOR_ZLIB, level=9, reverse_dims=true, byteshuffle=true).compressor ==
         CompressorOptions(COMPRESSOR_NONE, 0, 8, false, false)
-    @test_throws ArgumentError ZArray(fill(1.5); compressor=4)
+    @test_throws ArgumentError ZArray(fill(1.5); compressor=5)
 
     # the default level depends on the compressor
     @test ZArray(data; compressor=COMPRESSOR_NONE).compressor.level == 0
     @test ZArray(data; compressor=COMPRESSOR_ZLIB).compressor.level == 1
+    @test ZArray(data; compressor=COMPRESSOR_ZSTD).compressor.level == 1
 
-    @test_throws ArgumentError ZArray(data; compressor=4)
+    @test_throws ArgumentError ZArray(data; compressor=5)
     @test ZArray(data; compressor=COMPRESSOR_ZLIB, level=10).compressor.level == 9
     @test_throws ArgumentError ZArray(data; chunks=(-2, 3))
     @test_throws ArgumentError ZArray(["not", "bits"])

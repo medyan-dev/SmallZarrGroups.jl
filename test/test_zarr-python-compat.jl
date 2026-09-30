@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: CompressorOptions
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
 using PythonCall
 using Test
 
@@ -31,6 +31,9 @@ to_numpy(data::Array) = np.asarray(data).T
         "shuffle zlib" => ((; filters=pylist([shuffle8]), compressor=numcodecs.Zlib(level=3)), CompressorOptions(COMPRESSOR_ZLIB, 3, 8, false, true)),
         "zlib" => ((; compressor=numcodecs.Zlib(level=3)), CompressorOptions(COMPRESSOR_ZLIB, 3, 8, false, false)),
         "gzip" => ((; compressor=numcodecs.GZip(level=4)), CompressorOptions(COMPRESSOR_GZIP, 4, 8, false, false)),
+        "zstd" => ((; compressor=numcodecs.Zstd(level=-100)), CompressorOptions(COMPRESSOR_ZSTD, -100, 8, false, false)),
+        "zstd checksum" => ((; compressor=numcodecs.Zstd(level=3, checksum=true)), CompressorOptions(COMPRESSOR_ZSTD, 3, 8, false, false)),
+        "shuffle zstd" => ((; filters=pylist([shuffle8]), compressor=numcodecs.Zstd(level=1)), CompressorOptions(COMPRESSOR_ZSTD, 1, 8, false, true)),
         "slash separator" => ((; dimension_separator="/"), CompressorOptions(COMPRESSOR_BLOSC_LZ4, 5, 8, false, false)),
     ]
     for cname in ("blosclz", "lz4", "lz4hc", "zlib", "zstd"), shuffle in (0, 1, 2)

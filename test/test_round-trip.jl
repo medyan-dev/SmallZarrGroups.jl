@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: ZArray, level_range, default_level
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
 using PythonCall
 using Test
 
@@ -127,7 +127,7 @@ function test_round_trip(g::ZGroup; python::Bool=true)
 end
 
 @testset "round trip every compressor option" begin
-    for compressor in (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4),
+    for compressor in (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD),
             level in unique([extrema(level_range(compressor))..., default_level(compressor)]),
             reverse_dims in (false, true),
             byteshuffle in (false, true)

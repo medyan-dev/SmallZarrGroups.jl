@@ -64,7 +64,7 @@ end
     for shape in ((4,5), (2,5))
         g = ZGroup()
         data = reshape(Float64.(1:prod(shape)), shape)
-        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=SmallZarrGroups.COMPRESSOR_NONE)
+        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=SmallZarrGroups.COMPRESSOR_NONE, byteshuffle=false)
         mktempdir() do path
             SmallZarrGroups.save_dir(path, g)
             for i in 0:cld(shape[1],3)-1, j in 0:cld(shape[2],2)-1

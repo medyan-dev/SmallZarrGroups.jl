@@ -90,7 +90,7 @@ end
 # Parsing is lenient
 JSON.@defaults struct CompressorJSON
     id::String
-    level::Union{Nothing, Int} = nothing # zlib and gzip
+    level::Union{Nothing, Int} = nothing # zlib, gzip, and zstd
     clevel::Union{Nothing, Int} = nothing # blosc
 end
 JSON.@defaults struct FilterJSON
@@ -167,6 +167,9 @@ function parse_compressor(c::Union{Nothing, CompressorJSON})::Tuple{Int32, Int}
         COMPRESSOR_GZIP, c.level
     elseif c.id == "blosc"
         COMPRESSOR_BLOSC_LZ4, c.clevel
+    elseif c.id == "zstd"
+        # The zstd checksum option is ignored, zstd frames record if they have a checksum.
+        COMPRESSOR_ZSTD, c.level
     else
         throw(ArgumentError("$(c.id) compressor not supported yet"))
     end

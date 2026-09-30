@@ -46,14 +46,14 @@ array after creating the ZArray.
     If `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
     Chunk sizes are at least 1, including for zero length dimensions.
 - `compressor::Integer = DEFAULT_COMPRESSOR`:
-    One of `COMPRESSOR_NONE`, `COMPRESSOR_ZLIB`, `COMPRESSOR_GZIP`, or `COMPRESSOR_BLOSC_LZ4`.
+    One of `COMPRESSOR_NONE`, `COMPRESSOR_ZLIB`, `COMPRESSOR_GZIP`, `COMPRESSOR_BLOSC_LZ4`, or `COMPRESSOR_ZSTD`.
     Ignored for zero dimensional arrays, which like in zarr-python are not compressed.
 - `level::Integer = default_level(compressor)`:
     Compression level, clamped to `level_range(compressor)`.
 - `reverse_dims::Bool = false`:
     If `true`, chunks are stored with dimensions reversed relative to Julia's memory layout, Zarr `"F"` order.
     Ignored for zero dimensional arrays.
-- `byteshuffle::Bool = false`:
+- `byteshuffle::Bool = true`:
     If `true`, the numcodecs shuffle filter is applied before compressing.
     Ignored for 1 byte element types and zero dimensional arrays, where shuffling does nothing.
 - `attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()`:
@@ -83,7 +83,7 @@ function ZArray(data::Array{T,N};
         compressor::Integer=DEFAULT_COMPRESSOR,
         level::Integer=default_level(compressor),
         reverse_dims::Bool=false,
-        byteshuffle::Bool=false,
+        byteshuffle::Bool=true,
         attrs=OrderedDict{String,Any}(),
     ) where {T, N}
     @argcheck isvalidtype(T)

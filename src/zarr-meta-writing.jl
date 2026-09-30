@@ -78,6 +78,10 @@ function append_compressor!(b::Vector{UInt8}, c::CompressorOptions)
         append_str!(b, "{\"id\":\"blosc\",\"blocksize\":0,\"clevel\":")
         append_int!(b, c.level)
         append_str!(b, ",\"cname\":\"lz4\",\"shuffle\":1}")
+    elseif c.type == COMPRESSOR_ZSTD
+        append_str!(b, "{\"id\":\"zstd\",\"level\":")
+        append_int!(b, c.level)
+        append_str!(b, "}")
     else
         error("unreachable") # COV_EXCL_LINE
     end

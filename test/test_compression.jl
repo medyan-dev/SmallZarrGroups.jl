@@ -1,20 +1,22 @@
 using SmallZarrGroups
 using SmallZarrGroups: CompressorOptions, level_range, default_level, compress, decompress!
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
 using Test
 
-const ALL_COMPRESSORS = (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4)
+const ALL_COMPRESSORS = (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD)
 
 @testset "level_range and default_level" begin
     @test level_range(COMPRESSOR_NONE) == 0:0
     @test level_range(COMPRESSOR_ZLIB) == -1:9
     @test level_range(COMPRESSOR_GZIP) == -1:9
     @test level_range(COMPRESSOR_BLOSC_LZ4) == 0:9
+    @test level_range(COMPRESSOR_ZSTD) == -131072:22
     @test default_level(COMPRESSOR_NONE) == 0
     @test default_level(COMPRESSOR_ZLIB) == 1
     @test default_level(COMPRESSOR_GZIP) == 1
     @test default_level(COMPRESSOR_BLOSC_LZ4) == 5
-    for type in (-1, 4)
+    @test default_level(COMPRESSOR_ZSTD) == 1
+    for type in (-1, 5)
         @test_throws ArgumentError level_range(type)
         @test_throws ArgumentError default_level(type)
     end
@@ -29,7 +31,9 @@ end
     @test CompressorOptions(COMPRESSOR_ZLIB, -5, 8, false, false).level == -1
     @test CompressorOptions(COMPRESSOR_BLOSC_LZ4, -1, 8, false, false).level == 0
     @test CompressorOptions(COMPRESSOR_BLOSC_LZ4, big(2)^70, 8, false, false).level == 9
-    @test_throws ArgumentError CompressorOptions(4, 0, 8, false, false)
+    @test CompressorOptions(COMPRESSOR_ZSTD, -200000, 8, false, false).level == -131072
+    @test CompressorOptions(COMPRESSOR_ZSTD, 23, 8, false, false).level == 22
+    @test_throws ArgumentError CompressorOptions(5, 0, 8, false, false)
     @test_throws ArgumentError CompressorOptions(COMPRESSOR_NONE, 0, -1, false, false)
     @test_throws ArgumentError CompressorOptions(COMPRESSOR_NONE, 0, 2^31, false, false)
 end
@@ -44,7 +48,9 @@ end
 
 @testset "compress and decompress!" begin
     src = repeat(rand(UInt8, 100), 10)
-    for type in ALL_COMPRESSORS, level in level_range(type), itemsize in (1, 8)
+    # zstd has too many levels to test them all.
+    test_levels(type) = type == COMPRESSOR_ZSTD ? (-131072, -100, -1, 0, 1, 3, 22) : level_range(type)
+    for type in ALL_COMPRESSORS, level in test_levels(type), itemsize in (1, 8)
         c = CompressorOptions(type, level, itemsize, false, false)
         dst = zeros(UInt8, length(src))
         decompress!(c, dst, compress(c, src))
