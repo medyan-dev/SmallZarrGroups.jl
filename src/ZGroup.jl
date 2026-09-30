@@ -25,7 +25,7 @@ AbstractTrees.childtype(::Type{ZGroup}) = Union{ZArray,ZGroup}
 const RESERVED_NAMES = (".zgroup", ".zarray", ".zattrs", "zarr.json")
 
 function _normalize_path(pathstr::AbstractString)::Vector{SubString{String}}
-    path = split(replace(pathstr, '\\'=>'/'), '/'; keepempty=false)
+    path = split(String(pathstr), ('/', '\\'); keepempty=false)
     @argcheck !isempty(path)
     @argcheck !any(==("."), path)
     @argcheck !any(==(".."), path)
