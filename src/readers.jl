@@ -8,7 +8,14 @@ using ZipArchives
 
 abstract type AbstractReader end
 
+"""
+Return `path` with `\\` replaced by `/`, and without empty path parts.
+"""
 function norm_zarr_path(path::AbstractString)::String
+    # Fast path for keys that are already normalized.
+    if !contains(path, '\\') && !contains(path, "//") && !startswith(path, '/') && !endswith(path, '/')
+        return String(path)
+    end
     join(split(replace(path, '\\'=>'/'), '/'; keepempty=false), '/')
 end
 

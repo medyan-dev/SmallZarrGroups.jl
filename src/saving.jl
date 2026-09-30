@@ -3,7 +3,9 @@
 """
 If dirpath ends in .zip, save to a zip file, otherwise save to a directory.
 
-Note this will delete pre existing data at dirpath
+Saving to a zip file will delete pre existing data in the file.
+Saving to a directory will overwrite pre existing files with the same names,
+but other pre existing files are kept and will be loaded along with the saved data.
 """
 function save_dir(dirpath::AbstractString, z::ZGroup)
     if endswith(dirpath, ".zip")
@@ -16,8 +18,7 @@ function save_dir(dirpath::AbstractString, z::ZGroup)
     nothing
 end
 function save_dir(writer::AbstractWriter, z::ZGroup)
-    # TODO add something to prevent loops
-    _save_zgroup(writer, "", z::ZGroup)
+    _save_zgroup(writer, "", z, ZGroup[])
 end
 
 """
@@ -54,7 +55,17 @@ function _save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray
     return
 end
 
-function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
+"""
+Save `z` and its children.
+
+`ancestors` holds the groups currently being saved, to detect a group that contains itself.
+It is a `Vector` instead of an `IdSet` because a linear scan is faster for typical nesting depths.
+"""
+function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup, ancestors::Vector{ZGroup})
+    if any(a -> a === z, ancestors)
+        throw(ArgumentError("group at $(repr(key_prefix)) contains itself"))
+    end
+    push!(ancestors, z)
     group_key = key_prefix*".zgroup"
     write_key(writer, group_key, codeunits("{\"zarr_format\":2}"))
     _save_attrs(writer, key_prefix, z)
@@ -67,13 +78,15 @@ function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
         @argcheck '\\' ∉ k
         child_key_prefix = String(key_prefix*k*"/")
         if v isa ZGroup
-            _save_zgroup(writer, child_key_prefix, v)
+            _save_zgroup(writer, child_key_prefix, v, ancestors)
         elseif v isa ZArray
             _save_zarray(writer, child_key_prefix, v)
         else
             error("unreachable") # COV_EXCL_LINE
         end
     end
+    pop!(ancestors)
+    nothing
 end
 
 

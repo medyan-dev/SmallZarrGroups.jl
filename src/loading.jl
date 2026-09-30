@@ -41,9 +41,22 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
     keynames = key_names(reader)
     splitkeys = Vector{SubString{String}}[]
     keyname_dict = Dict{String, Int}()
-    for (key_idx, keyname) in enumerate(keynames)
+    for (key_idx, rawkeyname) in enumerate(keynames)
+        # Skip directory entries in zip files.
+        endswith(rawkeyname, '/') && continue
+        # Keys are looked up by their normalized name,
+        # so different spellings of a key, like "a//0" and "a/0", must not both exist.
+        keyname = norm_zarr_path(rawkeyname)
         if predicate(keyname)
-            push!(splitkeys, split(keyname,'/';keepempty=false))
+            if haskey(keyname_dict, keyname)
+                otherrawkeyname = keynames[keyname_dict[keyname]]
+                if otherrawkeyname == rawkeyname
+                    throw(ArgumentError("duplicate key $(repr(rawkeyname))"))
+                else
+                    throw(ArgumentError("keys $(repr(otherrawkeyname)) and $(repr(rawkeyname)) are both the key $(repr(keyname))"))
+                end
+            end
+            push!(splitkeys, split(keyname, '/'))
             keyname_dict[keyname] = key_idx
         end
     end
@@ -53,14 +66,21 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
             continue
         end
         if splitkey[end] == ".zgroup"
-            groupname = join(splitkey[begin:end-1],'/')
-            group = get!(ZGroup, output, groupname)
-            try_add_attrs!(group, reader, keyname_dict, groupname*"/")
+            path = _check_path(@view(splitkey[begin:end-1]))
+            # Throws an `ArgumentError` if an array is already there.
+            group = makegroups(output, path)
+            try_add_attrs!(group, reader, keyname_dict, join(path, '/')*"/")
         elseif splitkey[end] == ".zarray"
-            arrayname = join(splitkey[begin:end-1],'/')
+            path = _check_path(@view(splitkey[begin:end-1]))
+            arrayname = join(path, '/')
+            parent = makegroups(output, @view(path[begin:end-1]))
+            # Don't silently replace a group that has already been loaded.
+            if haskey(parent.children, path[end])
+                throw(ArgumentError("$(repr(arrayname)) is both an array and a group"))
+            end
             meta = parse_zarray(read_key_idx(reader, keyname_dict[arrayname*"/.zarray"]))
             zarray = load_array(meta.dtype, Val(length(meta.shape)), meta, arrayname, keyname_dict, reader)
-            output[arrayname] = zarray
+            parent.children[path[end]] = zarray
 
             try_add_attrs!(zarray, reader, keyname_dict, arrayname*"/")
         end

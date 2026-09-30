@@ -25,7 +25,14 @@ AbstractTrees.childtype(::Type{ZGroup}) = Union{ZArray,ZGroup}
 const RESERVED_NAMES = (".zgroup", ".zarray", ".zattrs", "zarr.json")
 
 function _normalize_path(pathstr::AbstractString)::Vector{SubString{String}}
-    path = split(String(pathstr), ('/', '\\'); keepempty=false)
+    _check_path(split(String(pathstr), ('/', '\\'); keepempty=false))
+end
+
+"""
+Throw an `ArgumentError` if `path`, a vector of non empty path parts, isn't a valid child path.
+Return `path`.
+"""
+function _check_path(path::AbstractVector{<:AbstractString})
     @argcheck !isempty(path)
     @argcheck !any(==("."), path)
     @argcheck !any(==(".."), path)
@@ -35,28 +42,38 @@ end
 
 function Base.getindex(d::ZGroup, pathstr::AbstractString)
     path = _normalize_path(pathstr)
-    foldl((x,y)->getindex(x.children, y), path; init=d)
+    gr::ZGroup = d
+    for part in @view(path[begin:end-1])
+        child = get(gr.children, part, nothing)
+        # The path doesn't exist if it goes through a missing child or a `ZArray`.
+        child isa ZGroup || throw(KeyError(pathstr))
+        gr = child
+    end
+    get(() -> throw(KeyError(pathstr)), gr.children, path[end])
 end
 
 """
 Make all groups in path if they don't already exist.
 Return the last group.
+Throw an `ArgumentError` if a `ZArray` is in the way.
 """
-function makegroups(d::ZGroup, path::Vector{<:AbstractString})
+function makegroups(d::ZGroup, path::AbstractVector{<:AbstractString})
     gr::ZGroup = d
-    for part in path
-        if !haskey(gr.children, part)
-            #create path if it doesn't exist
-            gr.children[part] = ZGroup()
+    for (i, part) in enumerate(path)
+        #create path if it doesn't exist
+        # A closure is used instead of `ZGroup` because `get!` doesn't specialize on a `Type` argument.
+        child = get!(() -> ZGroup(), gr.children, part)
+        if !(child isa ZGroup)
+            throw(ArgumentError("cannot make group $(repr(join(path[begin:i], '/'))), a ZArray is already there"))
         end
-        gr = gr.children[part]
+        gr = child
     end
     gr
 end
 
 function Base.setindex!(d::ZGroup, x::Union{ZGroup,ZArray}, pathstr::AbstractString)
     path = _normalize_path(pathstr)
-    lastgroup = makegroups(d, path[begin:end-1])
+    lastgroup = makegroups(d, @view(path[begin:end-1]))
     setindex!(lastgroup.children, x, path[end])
     d
 end
@@ -105,13 +122,19 @@ Base.pairs(d::ZGroup) = pairs(children(d))
 function Base.delete!(d::ZGroup, pathstr::AbstractString)
     if haskey(d, pathstr)
         path = _normalize_path(pathstr)
-        lastgroup::ZGroup = foldl((x,y)->getindex(x.children, y), path[begin:end-1]; init=d)
+        lastgroup::ZGroup = foldl((x,y)->getindex(x.children, y), @view(path[begin:end-1]); init=d)
         delete!(lastgroup.children, path[end])
     end
     d
 end
 
-function _print_group(io::IO, zg::ZGroup, prefix::String)
+"""
+Print the children of `zg`.
+
+`ancestors` holds the groups currently being printed, to detect a group that contains itself.
+"""
+function _print_group(io::IO, zg::ZGroup, prefix::String, ancestors::Vector{ZGroup})
+    push!(ancestors, zg)
     num_childern = length(pairs(zg))
     for (i, (k, child)) in enumerate(pairs(zg))
         println(io)
@@ -124,6 +147,12 @@ function _print_group(io::IO, zg::ZGroup, prefix::String)
         end
         if child isa ZGroup
             print(io, "📂 ", k)
+            ancestor_idx = findfirst(a -> a === child, ancestors)
+            if !isnothing(ancestor_idx)
+                # Like `Base`, print a circular reference instead of recursing forever.
+                print(io, " #= circular reference @-", length(ancestors) - ancestor_idx + 1, " =#")
+                continue
+            end
         elseif child isa ZArray
             print(io, "🔢 ", k, ": ")
             join(io, size(parent(child)),"×")
@@ -138,9 +167,11 @@ function _print_group(io::IO, zg::ZGroup, prefix::String)
             else
                 child_prefix = prefix * "|  "
             end
-            _print_group(io, child, child_prefix)
+            _print_group(io, child, child_prefix, ancestors)
         end
     end
+    pop!(ancestors)
+    nothing
 end
 
 function Base.show(io::IO, ::MIME"text/plain", zg::ZGroup)
@@ -148,5 +179,5 @@ function Base.show(io::IO, ::MIME"text/plain", zg::ZGroup)
     for (k, v) in attrs(zg)
         print(io, " 🏷️ $k => $(repr(v)),")
     end
-    _print_group(io, zg, "")
+    _print_group(io, zg, "", ZGroup[])
 end

@@ -47,6 +47,21 @@ end
     end
     @test !haskey(zg, "a")
 
+    # Paths can't go through an array.
+    zg["arr"] = [1,2]
+    @test !haskey(zg, "arr/b")
+    @test_throws KeyError zg["arr/b"]
+    @test_throws KeyError zg["arr/b/c"]
+    @test_throws KeyError zg["missing/b"]
+    @test_throws ArgumentError zg["arr/b"] = [3]
+    @test_throws ArgumentError zg["arr/b/c"] = ZGroup()
+    @test_throws ArgumentError get!(() -> [4], zg, "arr/b")
+    @test zg["arr"] == [1,2]
+    delete!(zg, "arr/b")
+    @test zg["arr"] == [1,2]
+    delete!(zg, "arr")
+    @test !haskey(zg, "arr")
+
     # Element types must be Union{
     #     Bool,
     #     Int8,

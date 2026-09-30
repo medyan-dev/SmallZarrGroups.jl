@@ -90,3 +90,55 @@ end
         @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
     end
 end
+
+@testset "saving a group that contains itself errors" begin
+    g = ZGroup()
+    g["self"] = g
+    @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
+    # Loop through a child group.
+    g = ZGroup()
+    g["a/b"] = [1,2]
+    g["a/c/d"] = g["a"]
+    @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
+    mktempdir() do dir
+        @test_throws ArgumentError SmallZarrGroups.save_dir(joinpath(dir, "out"), g)
+    end
+end
+
+@testset "showing a group that contains itself" begin
+    g = ZGroup()
+    g["self"] = g
+    g["z"] = [1]
+    @test repr("text/plain", g) == """
+        📂
+        ├─ 📂 self #= circular reference @-1 =#
+        └─ 🔢 z: 1 Int64 \
+        """
+    # Loop through a child group.
+    g = ZGroup()
+    g["a/b"] = [1,2]
+    g["a/c/d"] = g["a"]
+    @test repr("text/plain", g) == """
+        📂
+        └─ 📂 a
+           ├─ 🔢 b: 2 Int64 
+           └─ 📂 c
+              └─ 📂 d #= circular reference @-2 =#\
+        """
+end
+
+@testset "saving a group reachable by two paths saves two copies" begin
+    shared = ZGroup()
+    shared["x"] = [1,2]
+    g = ZGroup()
+    g["a"] = shared
+    g["b/c"] = shared
+    io = IOBuffer()
+    SmallZarrGroups.save_zip(io, g)
+    loaded = SmallZarrGroups.load_zip(take!(io))
+    @test loaded["a/x"] == [1,2]
+    @test loaded["b/c/x"] == [1,2]
+    @test loaded["a"] !== loaded["b/c"]
+    # Showing also prints the group twice.
+    @test repr("text/plain", g) == repr("text/plain", loaded)
+end
