@@ -81,3 +81,12 @@ end
         end
     end
 end
+
+@testset "saving a child with a zarr metadata key name errors" begin
+    # Children added directly to `children` skip the path checks in `setindex!`.
+    for name in (".zgroup", ".zarray", ".zattrs", "zarr.json")
+        g = ZGroup()
+        children(g)[name] = ZGroup()
+        @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
+    end
+end

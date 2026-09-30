@@ -20,11 +20,16 @@ AbstractTrees.childrentype(::Type{ZGroup}) = SortedDict{String,Union{ZArray,ZGro
 
 AbstractTrees.childtype(::Type{ZGroup}) = Union{ZArray,ZGroup}
 
+# Names of zarr metadata keys, which can't be used as child names.
+# "zarr.json" is the zarr v3 metadata key, so a child with that name could make the store look like zarr v3.
+const RESERVED_NAMES = (".zgroup", ".zarray", ".zattrs", "zarr.json")
+
 function _normalize_path(pathstr::AbstractString)::Vector{SubString{String}}
     path = split(replace(pathstr, '\\'=>'/'), '/'; keepempty=false)
     @argcheck !isempty(path)
     @argcheck !any(==("."), path)
     @argcheck !any(==(".."), path)
+    @argcheck !any(in(RESERVED_NAMES), path)
     path
 end
 

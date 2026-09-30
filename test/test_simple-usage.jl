@@ -39,6 +39,14 @@ end
     @test_throws ArgumentError zg["\\"] = [1,2]
     @test_throws ArgumentError zg["\\.."] = [1,2]
 
+    # zarr metadata key names are not allowed, including the zarr v3 "zarr.json".
+    for name in (".zgroup", ".zarray", ".zattrs", "zarr.json")
+        @test_throws ArgumentError zg[name] = [1,2]
+        @test_throws ArgumentError zg["a/$(name)/b"] = [1,2]
+        @test_throws ArgumentError zg[name] = ZGroup()
+    end
+    @test !haskey(zg, "a")
+
     # Element types must be Union{
     #     Bool,
     #     Int8,

@@ -62,6 +62,7 @@ function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup)
         @argcheck !isempty(k)
         @argcheck k != "."
         @argcheck k != ".."
+        @argcheck k ∉ RESERVED_NAMES
         @argcheck '/' ∉ k
         @argcheck '\\' ∉ k
         child_key_prefix = String(key_prefix*k*"/")
