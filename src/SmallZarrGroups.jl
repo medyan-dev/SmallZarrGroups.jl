@@ -39,10 +39,22 @@ for T in PRECOMPILE_TYPES, N in 1:4
 end
 # `setindex!` stores arrays in the children `SortedDict` with a runtime dispatch,
 # so it is precompiled by running it.
+# Saving to and loading from a `Vector{UInt8}` is also run, so time to first save and load is fast.
 @compile_workload begin
     g = ZGroup()
     for T in PRECOMPILE_TYPES, N in 1:4
         g["a"] = ZArray(Array{T, N}(undef, ntuple(Returns(0), N)))
+    end
+    g = ZGroup()
+    attrs(g)["a"] = "b"
+    for T in PRECOMPILE_TYPES, N in 1:4
+        g["$(T)/$(N)"] = zeros(T, ntuple(Returns(2), N))
+    end
+    g["none"] = ZArray(zeros(UInt8, 2); compressor=COMPRESSOR_NONE)
+    attrs(g["none"])["a"] = 1
+    gload = load_zip(save_zip(Vector{UInt8}, g))
+    for T in PRECOMPILE_TYPES, N in 1:4
+        gload["$(T)/$(N)"][begin]
     end
 end
 

@@ -43,7 +43,5 @@ end
 
 @testset "ZarrCore can read uncompressed v2 arrays" begin
     g = uncompressed_test_group()
-    io = IOBuffer()
-    SmallZarrGroups.save_zip(io, g)
-    compare_zarrcore(g, ZarrCore.zopen(ZarrZip.ZipStore(take!(io))))
+    compare_zarrcore(g, ZarrCore.zopen(ZarrZip.ZipStore(SmallZarrGroups.save_zip(Vector{UInt8}, g))))
 end

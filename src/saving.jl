@@ -24,11 +24,14 @@ end
 """
     save_zip(filename::AbstractString, z::ZGroup)
     save_zip(io::IO, z::ZGroup)
+    save_zip(Vector{UInt8}, z::ZGroup)::Vector{UInt8}
 
 Save data in a file `filename` or an `io` in ZipStore format.
 Note this will delete pre existing data in `filename`.
 The `io` passed to this function must be empty.
 This function will not close `io`.
+
+If `Vector{UInt8}` is passed, return the zip file data as a new `Vector{UInt8}`.
 """
 function save_zip(filename::AbstractString, z::ZGroup)::Nothing
     open(filename; write=true) do io
@@ -42,6 +45,11 @@ function save_zip(io::IO, z::ZGroup)::Nothing
     finally
         closewriter(writer)
     end
+end
+function save_zip(::Type{Vector{UInt8}}, z::ZGroup)::Vector{UInt8}
+    io = IOBuffer()
+    save_zip(io, z)
+    take!(io)
 end
 
 """
@@ -80,7 +88,9 @@ function _save_zgroup(writer::AbstractWriter, key_prefix::String, z::ZGroup, anc
         if v isa ZGroup
             _save_zgroup(writer, child_key_prefix, v, ancestors)
         elseif v isa ZArray
-            _save_zarray(writer, child_key_prefix, v)
+            # `invokelatest` stops Julia from wasting time inferring the generic `_save_zarray(::ZArray)`,
+            # only the concrete versions are ever run.
+            invokelatest(_save_zarray, writer, child_key_prefix, v)
         else
             error("unreachable") # COV_EXCL_LINE
         end
