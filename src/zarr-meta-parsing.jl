@@ -90,8 +90,7 @@ end
 # Parsing is lenient
 JSON.@defaults struct CompressorJSON
     id::String
-    level::Union{Nothing, Int} = nothing # zlib, gzip, and zstd
-    clevel::Union{Nothing, Int} = nothing # blosc
+    level::Union{Nothing, Int} = nothing
 end
 JSON.@defaults struct FilterJSON
     id::String
@@ -155,19 +154,12 @@ end
 """
 Return the compressor type and level.
 
-Blosc with any internal compressor becomes `COMPRESSOR_BLOSC_LZ4`.
 The level is the default level if it is missing or `null`.
 Out of range levels are clamped by the `CompressorOptions` constructor.
 """
 function parse_compressor(c::Union{Nothing, CompressorJSON})::Tuple{Int32, Int}
     isnothing(c) && return (COMPRESSOR_NONE, 0)
-    type, level = if c.id == "zlib"
-        COMPRESSOR_ZLIB, c.level
-    elseif c.id == "gzip"
-        COMPRESSOR_GZIP, c.level
-    elseif c.id == "blosc"
-        COMPRESSOR_BLOSC_LZ4, c.clevel
-    elseif c.id == "zstd"
+    type, level = if c.id == "zstd"
         # The zstd checksum option is ignored, zstd frames record if they have a checksum.
         COMPRESSOR_ZSTD, c.level
     else

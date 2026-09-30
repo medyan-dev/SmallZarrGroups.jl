@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: parse_zarr_dtype, parse_zarr_fill_value, parse_zarray, CompressorOptions
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZSTD
 using JSON
 using Test
 
@@ -129,30 +129,22 @@ end
 
     @testset "compressor" begin
         compressor(json) = parse_with(;compressor=json).compressor
-        c = compressor(Dict("id" => "zlib", "level" => 3))
-        @test (c.type, c.level) == (COMPRESSOR_ZLIB, 3)
-        c = compressor(Dict("id" => "gzip", "level" => -1))
-        @test (c.type, c.level) == (COMPRESSOR_GZIP, -1)
         # The zstd checksum option is ignored.
         c = compressor(Dict("id" => "zstd", "level" => -100, "checksum" => true))
         @test (c.type, c.level) == (COMPRESSOR_ZSTD, -100)
-        @test compressor(Dict("id" => "zstd")).level == 1
-        @test compressor(Dict("id" => "zstd", "level" => 100)).level == 22
-        # Any blosc becomes lz4, and blosc's internal shuffle is ignored.
-        c = compressor(Dict("id" => "blosc", "cname" => "zstd", "clevel" => 7, "shuffle" => 2, "blocksize" => 64))
-        @test c == CompressorOptions(COMPRESSOR_BLOSC_LZ4, 7, 8, false, false)
         # Levels are clamped, or the default if they are missing or null.
-        @test compressor(Dict("id" => "zlib")).level == 1
-        levels = [nothing => 1, 3 => 3, 100 => 9, -5 => -1, 2.0 => 2]
+        @test compressor(Dict("id" => "zstd")).level == 1
+        levels = [nothing => 1, 3 => 3, 100 => 22, -200000 => -131072, 2.0 => 2]
         for (level, expected) in levels
-            @test compressor(Dict("id" => "zlib", "level" => level)).level == expected
+            @test compressor(Dict("id" => "zstd", "level" => level)).level == expected
         end
         # Levels that aren't integers are rejected.
-        @test_throws InexactError compressor(Dict("id" => "zlib", "level" => 2.5))
-        @test_throws InexactError compressor(Dict("id" => "zlib", "level" => big(2)^70))
-        @test_throws MethodError compressor(Dict("id" => "zlib", "level" => "5"))
-        @test compressor(Dict("id" => "blosc", "clevel" => 100)).level == 9
-        @test compressor(Dict("id" => "blosc")).level == 5
+        @test_throws InexactError compressor(Dict("id" => "zstd", "level" => 2.5))
+        @test_throws InexactError compressor(Dict("id" => "zstd", "level" => big(2)^70))
+        @test_throws MethodError compressor(Dict("id" => "zstd", "level" => "5"))
+        for id in ("blosc", "zlib", "gzip")
+            @test_throws "$(id) compressor not supported yet" compressor(Dict("id" => id))
+        end
         @test_throws "ja3sfdsdhgw compressor not supported yet" compressor(Dict("id" => "ja3sfdsdhgw"))
         @test_throws "field `id` has no default" compressor(Dict("level" => 1))
     end

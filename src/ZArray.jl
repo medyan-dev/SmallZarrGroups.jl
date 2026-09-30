@@ -46,7 +46,7 @@ array after creating the ZArray.
     If `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
     Chunk sizes are at least 1, including for zero length dimensions.
 - `compressor::Integer = DEFAULT_COMPRESSOR`:
-    One of `COMPRESSOR_NONE`, `COMPRESSOR_ZLIB`, `COMPRESSOR_GZIP`, `COMPRESSOR_BLOSC_LZ4`, or `COMPRESSOR_ZSTD`.
+    Either `COMPRESSOR_NONE` or `COMPRESSOR_ZSTD`.
     Ignored for zero dimensional arrays, which like in zarr-python are not compressed.
 - `level::Integer = default_level(compressor)`:
     Compression level, clamped to `level_range(compressor)`.

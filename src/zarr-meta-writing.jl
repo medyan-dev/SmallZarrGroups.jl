@@ -66,18 +66,6 @@ Append the numcodecs compressor JSON.
 function append_compressor!(b::Vector{UInt8}, c::CompressorOptions)
     if c.type == COMPRESSOR_NONE
         append_str!(b, "null")
-    elseif c.type == COMPRESSOR_ZLIB
-        append_str!(b, "{\"id\":\"zlib\",\"level\":")
-        append_int!(b, c.level)
-        append_str!(b, "}")
-    elseif c.type == COMPRESSOR_GZIP
-        append_str!(b, "{\"id\":\"gzip\",\"level\":")
-        append_int!(b, c.level)
-        append_str!(b, "}")
-    elseif c.type == COMPRESSOR_BLOSC_LZ4
-        append_str!(b, "{\"id\":\"blosc\",\"blocksize\":0,\"clevel\":")
-        append_int!(b, c.level)
-        append_str!(b, ",\"cname\":\"lz4\",\"shuffle\":1}")
     elseif c.type == COMPRESSOR_ZSTD
         append_str!(b, "{\"id\":\"zstd\",\"level\":")
         append_int!(b, c.level)

@@ -1,6 +1,6 @@
 using SmallZarrGroups
 using SmallZarrGroups: ZArray, level_range, default_level
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZSTD
 using PythonCall
 using Test
 
@@ -127,7 +127,7 @@ function test_round_trip(g::ZGroup; python::Bool=true)
 end
 
 @testset "round trip every compressor option" begin
-    for compressor in (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD),
+    for compressor in (COMPRESSOR_NONE, COMPRESSOR_ZSTD),
             level in unique([extrema(level_range(compressor))..., default_level(compressor)]),
             reverse_dims in (false, true),
             byteshuffle in (false, true)
@@ -156,7 +156,7 @@ end
     g["empty"] = ZGroup()
     g["sub/b"] = ZArray(rand(Float32, 5))
     g["sub/empty"] = ZGroup()
-    g["sub/deeper/c"] = ZArray(rand(UInt8, 2, 3, 4); compressor=COMPRESSOR_ZLIB)
+    g["sub/deeper/c"] = ZArray(rand(UInt8, 2, 3, 4); compressor=COMPRESSOR_NONE)
     attrs(g["sub"])["n"] = 3
     attrs(g["sub/deeper/c"])["list"] = [1.5, NaN]
     attrs(g["sub/deeper/c"])["nested"] = Dict("x" => "y")

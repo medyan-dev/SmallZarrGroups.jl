@@ -13,7 +13,7 @@ In memory hierarchy of arrays and attributes loaded from disk or to be saved to 
 
 1. If you just want to serialize arbitrary Julia data consider using https://github.com/JuliaIO/JLD2.jl or https://github.com/invenia/JLSO.jl
 2. Only Numpy types "b i u f c V" are supported.
-3. Zarr filters are not supported.
+3. Only the zstd compressor and the shuffle filter are supported. Arrays compressed with blosc, zarr-python's default, can't be loaded.
 
 ## Overview
 

@@ -2,7 +2,7 @@ using SmallZarrGroups
 using SmallZarrGroups: chunk_key, column_major_strides, chunk_strides, chunk_nbytes, chunk_byte_layout
 using SmallZarrGroups: copy_to_chunk!, copy_from_chunk!, encode_chunk, decode_chunk!
 using SmallZarrGroups: CompressorOptions, default_level
-using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD
+using SmallZarrGroups: COMPRESSOR_NONE, COMPRESSOR_ZSTD
 using Test
 
 """
@@ -107,7 +107,7 @@ end
 @testset "encode_chunk and decode_chunk!" begin
     for T in (UInt8, Int16, Float64, NTuple{3, UInt8})
         chunk = rand(UInt8, 60*sizeof(T))
-        for type in (COMPRESSOR_NONE, COMPRESSOR_ZLIB, COMPRESSOR_GZIP, COMPRESSOR_BLOSC_LZ4, COMPRESSOR_ZSTD), byteshuffle in (false, true)
+        for type in (COMPRESSOR_NONE, COMPRESSOR_ZSTD), byteshuffle in (false, true)
             c = CompressorOptions(type, default_level(type), sizeof(T), false, byteshuffle)
             decoded = similar(chunk)
             @test decode_chunk!(decoded, c, encode_chunk(c, chunk)) == chunk
