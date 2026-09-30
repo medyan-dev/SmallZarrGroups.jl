@@ -33,9 +33,7 @@ const SHAPES = [
 ]
 
 function round_trip(g::ZGroup)::ZGroup
-    io = IOBuffer()
-    SmallZarrGroups.save_zip(io, g)
-    SmallZarrGroups.load_zip(take!(io))
+    SmallZarrGroups.load_zip(SmallZarrGroups.save_zip(Vector{UInt8}, g))
 end
 
 """

@@ -317,9 +317,7 @@ end
     g["testgroup1"] = ZGroup()
     g["testgroup1"]["testarray1"] = data3
     attrs(g["testgroup1/testarray1"])["foo"] = "bar3"
-    io = IOBuffer()
-    SmallZarrGroups.save_zip(io, g)
-    data = take!(io)
+    data = SmallZarrGroups.save_zip(Vector{UInt8}, g)
     # data now contains the data of a zipfile
     # it could be saved to disk, sent to another process, or loaded back as a ZGroup.
     gload = SmallZarrGroups.load_zip(data)

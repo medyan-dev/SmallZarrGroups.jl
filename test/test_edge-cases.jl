@@ -133,9 +133,7 @@ end
     g = ZGroup()
     g["a"] = shared
     g["b/c"] = shared
-    io = IOBuffer()
-    SmallZarrGroups.save_zip(io, g)
-    loaded = SmallZarrGroups.load_zip(take!(io))
+    loaded = SmallZarrGroups.load_zip(SmallZarrGroups.save_zip(Vector{UInt8}, g))
     @test loaded["a/x"] == [1,2]
     @test loaded["b/c/x"] == [1,2]
     @test loaded["a"] !== loaded["b/c"]

@@ -79,7 +79,9 @@ function load_dir(reader::AbstractReader; predicate=Returns(true))::ZGroup
                 throw(ArgumentError("$(repr(arrayname)) is both an array and a group"))
             end
             meta = parse_zarray(read_key_idx(reader, keyname_dict[arrayname*"/.zarray"]))
-            zarray = load_array(meta.dtype, Val(length(meta.shape)), meta, arrayname, keyname_dict, reader)
+            # `invokelatest` stops Julia from wasting time inferring the generic `load_array`,
+            # only the concrete versions are ever run.
+            zarray = invokelatest(load_array, meta.dtype, Val(length(meta.shape)), meta, arrayname, keyname_dict, reader)::ZArray
             parent.children[path[end]] = zarray
 
             try_add_attrs!(zarray, reader, keyname_dict, arrayname*"/")
