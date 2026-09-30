@@ -1,7 +1,6 @@
 using SmallZarrGroups
 using DataStructures: SortedDict, OrderedDict
 using Test
-using Pkg.Artifacts
 
 using PythonCall
 
@@ -82,16 +81,6 @@ function compare_jl_py_zarray(jl_zarray::SmallZarrGroups.ZArray, py_zarray)
     end
 end
 
-
-@testset "read fixture data and compare to zarr-python" begin
-    ensure_artifact_installed("fixture", joinpath(@__DIR__, "Artifacts.toml"))
-    fixture_path = artifact"fixture" # joinpath(@__DIR__,"fixture/")
-    disk_load_compare(zarr, joinpath(fixture_path, "fixture"))
-    disk_load_compare(zarr, joinpath(fixture_path, "fixture.zip"))
-    disk_load_compare(zarr, joinpath(fixture_path, "ring_system.zarr"))
-    disk_load_compare(zarr, joinpath(fixture_path, "ring_system.zarr.zip"))
-    # disk_load_compare(zarr, joinpath(@__DIR__,"example_all_sites_context.zarr"))
-end
 
 @testset "zarr-python zero dimensional array compatibility" begin
     g = ZGroup()

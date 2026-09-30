@@ -1,43 +1,113 @@
-
+# Writing zarr array metadata.
 
 """
-Write a julia type as a zarr type string
+    append_zarr_dtype!(b::Vector{UInt8}, T::Type)
+
+Append the zarr dtype string of `T` to `b`, for example `"<f8"` for `Float64`.
 """
-function write_type(io::IO, t::Type)
-    if t <: Bool
-        print(io, "\"|b1\"")
-    elseif t <: Int8
-        print(io, "\"|i1\"")
-    elseif t <: Int16
-        print(io, "\"<i2\"")
-    elseif t <: Int32
-        print(io, "\"<i4\"")
-    elseif t <: Int64
-        print(io, "\"<i8\"")
-    elseif t <: UInt8
-        print(io, "\"|u1\"")
-    elseif t <: UInt16
-        print(io, "\"<u2\"")
-    elseif t <: UInt32
-        print(io, "\"<u4\"")
-    elseif t <: UInt64
-        print(io, "\"<u8\"")
-    elseif t <: Float16
-        print(io, "\"<f2\"")
-    elseif t <: Float32
-        print(io, "\"<f4\"")
-    elseif t <: Float64
-        print(io, "\"<f8\"")
-    elseif t <: ComplexF16
-        print(io, "\"<c4\"")
-    elseif t <: ComplexF32
-        print(io, "\"<c8\"")
-    elseif t <: ComplexF64
-        print(io, "\"<c16\"")
-    elseif t <: (NTuple{N,UInt8} where N)
-        print(io, "\"|V", sizeof(t), "\"")
+function append_zarr_dtype!(b::Vector{UInt8}, T::Type)
+    typechar = if T === Bool
+        UInt8('b')
+    elseif T <: Union{Int8, Int16, Int32, Int64}
+        UInt8('i')
+    elseif T <: Union{UInt8, UInt16, UInt32, UInt64}
+        UInt8('u')
+    elseif T <: Union{Float16, Float32, Float64}
+        UInt8('f')
+    elseif T <: Union{ComplexF16, ComplexF32, ComplexF64}
+        UInt8('c')
+    elseif T <: (NTuple{N, UInt8} where N)
+        UInt8('V')
     else
-        error("type $t cannot be saved in a zarr array")
+        throw(ArgumentError("type $(T) cannot be saved in a zarr array"))
     end
+    byteorder = if (sizeof(T) == 1 || typechar == UInt8('V'))
+        UInt8('|')
+    else
+        UInt8('<')
+    end
+    push!(b, byteorder)
+    push!(b, typechar)
+    append_int!(b, sizeof(T))
+end
 
+append_str!(b::Vector{UInt8}, s::String) = append!(b, codeunits(s))
+
+"""
+Append the decimal digits of `x` to `b`.
+"""
+function append_int!(b::Vector{UInt8}, x::Integer)
+    x < 0 && push!(b, UInt8('-'))
+    x = Base.uabs(x)
+    n = ndigits(x)
+    resize!(b, length(b) + n)
+    for i in lastindex(b):-1:lastindex(b)-n+1
+        b[i] = UInt8('0') + UInt8(x % 10)
+        x ÷= 10
+    end
+    b
+end
+
+"""
+Append the JSON array of `dims`, reversed into zarr order.
+"""
+function append_dims!(b::Vector{UInt8}, dims::NTuple{N,Int}) where {N}
+    push!(b, UInt8('['))
+    for i in N:-1:1
+        append_int!(b, dims[i])
+        i > 1 && push!(b, UInt8(','))
+    end
+    push!(b, UInt8(']'))
+end
+
+"""
+Append the numcodecs compressor JSON.
+"""
+function append_compressor!(b::Vector{UInt8}, c::CompressorOptions)
+    if c.type == COMPRESSOR_NONE
+        append_str!(b, "null")
+    elseif c.type == COMPRESSOR_ZSTD
+        append_str!(b, "{\"id\":\"zstd\",\"level\":")
+        append_int!(b, c.level)
+        append_str!(b, "}")
+    else
+        error("unreachable") # COV_EXCL_LINE
+    end
+end
+
+"""
+Append the numcodecs filters JSON.
+"""
+function append_filters!(b::Vector{UInt8}, c::CompressorOptions)
+    if c.byteshuffle
+        append_str!(b, "[{\"id\":\"shuffle\",\"elementsize\":")
+        append_int!(b, c.itemsize)
+        append_str!(b, "}]")
+    else
+        append_str!(b, "null")
+    end
+end
+
+"""
+    zarray_json(T::Type, shape::NTuple{N,Int}, chunks::NTuple{N,Int}, c::CompressorOptions)::Vector{UInt8}
+
+Return the contents of the `.zarray` file of an array with element type `T`.
+`shape` and `chunks` are in Julia order.
+"""
+function zarray_json(T::Type, shape::NTuple{N,Int}, chunks::NTuple{N,Int}, c::CompressorOptions)::Vector{UInt8} where {N}
+    b = sizehint!(UInt8[], 256)
+    append_str!(b, "{\"zarr_format\":2,\"fill_value\":null,\"chunks\":")
+    append_dims!(b, chunks)
+    append_str!(b, ",\"order\":")
+    append_str!(b, c.reverse_dims ? "\"F\"" : "\"C\"")
+    append_str!(b, ",\"filters\":")
+    append_filters!(b, c)
+    append_str!(b, ",\"compressor\":")
+    append_compressor!(b, c)
+    append_str!(b, ",\"shape\":")
+    append_dims!(b, shape)
+    append_str!(b, ",\"dtype\":\"")
+    append_zarr_dtype!(b, T)
+    append_str!(b, "\"}")
+    b
 end

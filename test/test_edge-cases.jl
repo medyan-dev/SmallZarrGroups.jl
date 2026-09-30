@@ -16,7 +16,8 @@ using Test
         gload = SmallZarrGroups.load_dir(path)
         @test length(keys(attrs(gload))) == length(keys(attrs(g)))
         @test attrs(gload)["foo"] == "bar"
-        @test attrs(gload)["2"] == 123
+        # All numbers are loaded as `Float64`.
+        @test attrs(gload)["2"] === 123.0
         @test attrs(gload)["weird-number"] === 1.5
         @test attrs(gload)["list"] == [1,2,3,4]
     end
@@ -63,7 +64,7 @@ end
     for shape in ((4,5), (2,5))
         g = ZGroup()
         data = reshape(Float64.(1:prod(shape)), shape)
-        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=nothing)
+        g["a"] = SmallZarrGroups.ZArray(data; chunks=(3,2), compressor=SmallZarrGroups.COMPRESSOR_NONE, byteshuffle=false)
         mktempdir() do path
             SmallZarrGroups.save_dir(path, g)
             for i in 0:cld(shape[1],3)-1, j in 0:cld(shape[2],2)-1
@@ -79,4 +80,65 @@ end
             @test SmallZarrGroups.load_dir(path)["a"] == data
         end
     end
+end
+
+@testset "saving a child with a zarr metadata key name errors" begin
+    # Children added directly to `children` skip the path checks in `setindex!`.
+    for name in (".zgroup", ".zarray", ".zattrs", "zarr.json")
+        g = ZGroup()
+        children(g)[name] = ZGroup()
+        @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
+    end
+end
+
+@testset "saving a group that contains itself errors" begin
+    g = ZGroup()
+    g["self"] = g
+    @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
+    # Loop through a child group.
+    g = ZGroup()
+    g["a/b"] = [1,2]
+    g["a/c/d"] = g["a"]
+    @test_throws ArgumentError SmallZarrGroups.save_zip(IOBuffer(), g)
+    mktempdir() do dir
+        @test_throws ArgumentError SmallZarrGroups.save_dir(joinpath(dir, "out"), g)
+    end
+end
+
+@testset "showing a group that contains itself" begin
+    g = ZGroup()
+    g["self"] = g
+    g["z"] = [1]
+    @test repr("text/plain", g) == """
+        📂
+        ├─ 📂 self #= circular reference @-1 =#
+        └─ 🔢 z: 1 Int64 \
+        """
+    # Loop through a child group.
+    g = ZGroup()
+    g["a/b"] = [1,2]
+    g["a/c/d"] = g["a"]
+    @test repr("text/plain", g) == """
+        📂
+        └─ 📂 a
+           ├─ 🔢 b: 2 Int64 
+           └─ 📂 c
+              └─ 📂 d #= circular reference @-2 =#\
+        """
+end
+
+@testset "saving a group reachable by two paths saves two copies" begin
+    shared = ZGroup()
+    shared["x"] = [1,2]
+    g = ZGroup()
+    g["a"] = shared
+    g["b/c"] = shared
+    io = IOBuffer()
+    SmallZarrGroups.save_zip(io, g)
+    loaded = SmallZarrGroups.load_zip(take!(io))
+    @test loaded["a/x"] == [1,2]
+    @test loaded["b/c/x"] == [1,2]
+    @test loaded["a"] !== loaded["b/c"]
+    # Showing also prints the group twice.
+    @test repr("text/plain", g) == repr("text/plain", loaded)
 end

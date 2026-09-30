@@ -1,6 +1,0 @@
-[fixture]
-git-tree-sha1 = "326a434121863402506a04ef77d42b049ccbcd1a"
-
-    [[fixture.download]]
-    sha256 = "59bbccec99379cdd4b4e6c7aba4e15cac146138d0c291fc4127955868ce3c934"
-    url = "https://github.com/medyan-dev/SmallZarrGroups.jl/releases/download/v0.6.6/fixture2.tar.gz"

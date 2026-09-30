@@ -1,14 +1,4 @@
 
-
-const DEFAULT_COMPRESSOR = JSON3.read("""{
-        "blocksize": 0,
-        "clevel": 5,
-        "cname": "lz4",
-        "id": "blosc",
-        "shuffle": 1
-    }""")
-
-
 const ZDataTypes = Union{
     Bool,
     Int8,
@@ -35,6 +25,8 @@ function isvalidtype(T::Type)::Bool
 end
 
 """
+    ZArray(data::Array{T,N}; kwargs...)
+
 Create a ZArray.
 
 This is just a view of a regular Array with added metadata.
@@ -50,44 +42,60 @@ array after creating the ZArray.
 - `chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}} = -1`:
     The size of chunks that will be compressed.
     If `chunks` is a single element, that value will be used for all dimensions. 
-    If `chunks` is `-1`, chunk size will be guessed for balanced random and sequential read performance.
+    If `chunks` is `-1`, chunk size will be guessed: arrays up to 8 MiB are a single chunk,
+    and larger arrays are split by repeatedly halving the largest chunk dimension,
+    giving chunks between 4 and 8 MiB.
     If `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
-- `compressor::String = "default"`:
-    Only blosc and no compression are supported.
-    If `"default"`, `DEFAULT_COMPRESSOR` will be used.
-    If `nothing`, no compressor will be used.
-    Otherwise, `compressor` must be a json3 object that can be understood by numcodecs https://github.com/zarr-developers/numcodecs
-- `attrs::SortedDict{String,Any}=SortedDict{String,Any}()`:
-    JSON3 encodable metadata, not copied on construction. 
+    Chunk sizes are at least 1, including for zero length dimensions.
+- `compressor::Integer = DEFAULT_COMPRESSOR`:
+    Either `COMPRESSOR_NONE` or `COMPRESSOR_ZSTD`.
+    Ignored for zero dimensional arrays, which like in zarr-python are not compressed.
+- `level::Integer = default_level(compressor)`:
+    Compression level, clamped to `level_range(compressor)`.
+- `reverse_dims::Bool = false`:
+    If `true`, chunks are stored with dimensions reversed relative to Julia's memory layout, Zarr `"F"` order.
+    Ignored for zero dimensional arrays.
+- `byteshuffle::Bool = true`:
+    If `true`, the numcodecs shuffle filter is applied before compressing.
+    Ignored for 1 byte element types and zero dimensional arrays, where shuffling does nothing.
+- `attrs::OrderedDict{String,Any} = OrderedDict{String,Any}()`:
+    JSON encodable metadata, not copied on construction. 
     This can be modified after creating the ZArray.
 """
 mutable struct ZArray{T,N} <: AbstractArray{T,N}
     data::Array{T,N}
-    chunks::Vector{Int}
-    compressor::Union{Nothing, JSON3.Object}
-
+    chunks::NTuple{N,Int}
+    compressor::CompressorOptions
     attrs::OrderedDict{String,Any}
-    function ZArray(data::Array{T,N};
-            chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1,
-            compressor::Union{Nothing, JSON3.Object}=DEFAULT_COMPRESSOR,
+    function ZArray(
+            data::Array{T,N},
+            chunks::NTuple{N,Int},
+            compressor::CompressorOptions;
             attrs=OrderedDict{String,Any}(),
         ) where {T, N}
-        @argcheck isvalidtype(T)
-        real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-        new{T,N}(data, real_chunks, compressor, attrs)
+        @assert isvalidtype(T)
+        @assert all(≥(1), chunks)
+        @assert compressor.itemsize == sizeof(T)
+        new{T,N}(data, chunks, compressor, attrs)
     end
 end
 
-"""
-Change the array in za.
-This doesn't copy the array, so don't resize the array after calling this function.
-"""
-function setarray!(za::ZArray, data::Array{T,N}; chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1) where {T, N}
+function ZArray(data::Array{T,N};
+        chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}=-1,
+        compressor::Integer=DEFAULT_COMPRESSOR,
+        level::Integer=default_level(compressor),
+        reverse_dims::Bool=false,
+        byteshuffle::Bool=true,
+        attrs=OrderedDict{String,Any}(),
+    ) where {T, N}
     @argcheck isvalidtype(T)
-    real_chunks::Vector{Int} = collect(normalize_chunks(chunks,size(data),Base.elsize(data)))
-    za.chunks = real_chunks
-    za.data = data
-    za
+    c = CompressorOptions(compressor, level, sizeof(T), reverse_dims, byteshuffle)
+    if N == 0
+        # Like zarr-python, zero dimensional arrays are not compressed.
+        # Shuffling and reversing dimensions also do nothing to a single element.
+        c = CompressorOptions(COMPRESSOR_NONE, 0, sizeof(T), false, false)
+    end
+    ZArray(data, normalize_chunks(chunks, size(data), sizeof(T)), c; attrs)
 end
 
 """
@@ -127,15 +135,6 @@ Return the mutable SortedDict of attributes.
 """
 attrs(za::ZArray) = za.attrs
 
-"""
-Set the compressor.
-"""
-function set_compressor!(za::ZArray, compressor::Union{Nothing, JSON3.Object}=DEFAULT_COMPRESSOR)
-    za.compressor = compressor
-end
-
-get_compressor!(za::ZArray)::Union{Nothing, JSON3.Object} = za.compressor
-
 
 """
 Return a normalized chunk size.
@@ -143,49 +142,32 @@ Return a normalized chunk size.
 - `chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}}`:
     The size of chunks that will be compressed.
     If `chunks` is a single element, that value will be used for all dimensions. 
-    If `chunks` is `-1`, chunk size will be guessed for balanced random and sequential read performance.
+    If `chunks` is `-1`, chunk size will be guessed: arrays up to 8 MiB are a single chunk,
+    and larger arrays are split by repeatedly halving the largest chunk dimension,
+    giving chunks between 4 and 8 MiB.
     If an element of `chunks` is `:` or 0, the chunk size will be set to the array size in that dimension.
 - `size::NTuple{N,Int}`: array size.
 - `elsize::Int`: sizeof array elements in bytes.
+
+Chunk sizes are at least 1, including for zero length dimensions.
 """
 function normalize_chunks(
         chunks::Union{Int, Colon, NTuple{N,Union{Int,Colon}}},
         size::NTuple{N,Int},
         elsize::Int, #in bytes
     )::NTuple{N,Int} where {N}
-    if chunks == -1
+    raw_chunks::NTuple{N,Int} = if chunks == -1
         # Balanced chunking
-        # guess chunk size for strictly negative dims.
-        # From https://www.pytables.org/usersguide/optimization.html
-        # Ideally chunksize should be 128KB to 512KB
-        # >128KB to have good sequential read performance.
-        # <512KB to have good random read performance.
-        # heuristic from zarr-python adapted for julia
-        # https://github.com/zarr-developers/zarr-python/blob/42da4aa2b2d6b6e79a6f3d6629e3d1837af8e9b9/zarr/util.py#L74
-        #     """
-        #     Guess an appropriate chunk layout for an array, given its shape and
-        #     the size of each element in bytes.  Will allocate chunks only as large
-        #     as CHUNK_MAX.  Chunks are generally close to some power-of-2 fraction of
-        #     each axis, slightly favoring bigger values for the first index.
-        #     Undocumented and subject to change without warning.
-        #     """
-        CHUNK_BASE = 256*1500  # Multiplier by which chunks are adjusted
-        CHUNK_MIN = 128*1024  # Soft lower limit (128k)
-        CHUNK_MAX = 64*1024*1024  # Hard upper limit
-        data_bytes = prod(size)*elsize
-        target_bytes = clamp(CHUNK_BASE*(data_bytes*2^-20)^(1/log2(10)), CHUNK_MIN, CHUNK_MAX)
-        target_bytes = max(target_bytes, elsize)
-        # This is also from h5py, but the dims are iterated in reverse order because
-        # Julia dimensions are the reverse of the Zarr dimensions.
-        # Repeatedly loop over the dims, dividing the chunks size by 2.
+        # The limit is large because arrays are usually loaded whole.
+        CHUNK_MAX = 8*1024*1024  # 8 MiB
+        target_bytes = max(CHUNK_MAX, elsize)
+        # Repeatedly halve the largest chunk dimension, so small dimensions
+        # are only split once every other dimension is as small.
+        # Ties go to the last Julia dimension, the first Zarr dimension.
         _chunks = size
-        idx = Int(N)
         while prod(_chunks)*elsize > target_bytes
-            # shrink chunk size if possible
-            if _chunks[idx] > 1
-                _chunks = Base.setindex(_chunks, ceil(Int,_chunks[idx]/2), idx)
-            end
-            idx = mod1(idx-1, Int(N))
+            idx = findlast(==(maximum(_chunks)), _chunks)::Int
+            _chunks = Base.setindex(_chunks, cld(_chunks[idx], 2), idx)
         end
         _chunks
     # elseif chunks == -2
@@ -223,4 +205,5 @@ function normalize_chunks(
         @argcheck all(≥(0), expanded_chunks)
         expanded_chunks
     end
+    max.(raw_chunks, 1)
 end
