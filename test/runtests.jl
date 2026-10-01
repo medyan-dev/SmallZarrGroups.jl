@@ -2,7 +2,7 @@ using Test
 using Random
 using CondaPkg
 
-CondaPkg.add("zarr"; version="2.*")
+CondaPkg.add("zarr"; version=">=3")
 
 Random.seed!(1234)
 
