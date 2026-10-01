@@ -69,18 +69,33 @@ function python_round_trip(g::ZGroup)::ZGroup
             SmallZarrGroups.save_zip(src_io, g)
             close(src_io)
             close(dst_io)
-            src_store = zarr.ZipStore(src, mode="r")
-            dst_store = zarr.ZipStore(dst, mode="w")
+            src_store = zarr.storage.ZipStore(src, mode="r")
+            dst_store = zarr.storage.ZipStore(dst, mode="w")
             try
                 py_src = zarr.open_group(store=src_store, mode="r")
                 test_python_reads(py_src, g)
-                zarr.copy_all(py_src, zarr.group(store=dst_store))
+                py_copy_all(py_src, zarr.group(store=dst_store, zarr_format=2, attributes=py_src.attrs.asdict()))
             finally
                 src_store.close()
                 dst_store.close()
             end
             SmallZarrGroups.load_zip(dst)
         end
+    end
+end
+
+"""
+Copy the zarr-python group `py_src` into `py_dst`, like zarr-python 2's `zarr.copy_all`.
+
+`zarr.from_array` keeps the chunks, order, filters, compressor, and fill value of each array.
+Attributes are set when each node is created, because a `ZipStore` can't overwrite a key.
+"""
+function py_copy_all(py_src, py_dst)
+    for (name, py_group) in py_src.groups()
+        py_copy_all(py_group, py_dst.create_group(name; attributes=py_group.attrs.asdict()))
+    end
+    for (name, py_array) in py_src.arrays()
+        zarr.from_array(py_dst.store_path / name; data=py_array, attributes=py_array.attrs.asdict())
     end
 end
 
@@ -156,7 +171,7 @@ end
     g["sub/empty"] = ZGroup()
     g["sub/deeper/c"] = ZArray(rand(UInt8, 2, 3, 4); compressor=COMPRESSOR_NONE)
     attrs(g["sub"])["n"] = 3
-    attrs(g["sub/deeper/c"])["list"] = [1.5, NaN]
+    attrs(g["sub/deeper/c"])["list"] = [1.5, -2.5e300]
     attrs(g["sub/deeper/c"])["nested"] = Dict("x" => "y")
     attrs(g["sub/deeper/c"])["unicode"] = Dict("x" => "🦘")
     test_round_trip(g)

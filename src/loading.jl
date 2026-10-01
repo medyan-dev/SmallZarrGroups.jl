@@ -31,8 +31,7 @@ end
 function try_add_attrs!(@nospecialize(zthing::Union{ZGroup, ZArray}), reader::AbstractReader, keyname_dict,  key_prefix)
     attrsidx = get(Returns(0), keyname_dict, key_prefix*".zattrs")
     if attrsidx > 0
-        # With `allownan=true`, JSON.jl parses all untyped numbers as `Float64`.
-        zthing.attrs = JSON.parse(read_key_idx(reader, attrsidx), OrderedDict{String,Any}; allownan=true)
+        zthing.attrs = JSON.parse(read_key_idx(reader, attrsidx), OrderedDict{String,Any})
     end
 end
 
@@ -112,6 +111,12 @@ function load_array(
             # Missing chunks are left as the fill value.
             iszero(key_idx) && continue
             decode_chunk!(chunk, c, read_key_idx(reader, key_idx))
+            if T === Bool
+                # Like numpy, any nonzero byte is `true`.
+                for i in eachindex(chunk)
+                    chunk[i] = !iszero(chunk[i])
+                end
+            end
             copy_from_chunk!(data, chunk, chunks, c.reverse_dims, index)
         end
     end

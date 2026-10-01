@@ -56,6 +56,16 @@ end
     @test_throws ArgumentError zg["arr/b"] = [3]
     @test_throws ArgumentError zg["arr/b/c"] = ZGroup()
     @test_throws ArgumentError get!(() -> [4], zg, "arr/b")
+    # get! returns the stored value, whether or not it was already there.
+    x = [5,6]
+    a = get!(() -> x, zg, "getarr/b")
+    @test a isa ZArray{Int64, 1}
+    @test a === zg["getarr/b"]
+    a[1] = 7
+    @test zg["getarr/b"] == [7,6]
+    @test x == [5,6]
+    @test get!(() -> [8], zg, "getarr/b") === a
+    delete!(zg, "getarr")
     @test zg["arr"] == [1,2]
     delete!(zg, "arr/b")
     @test zg["arr"] == [1,2]

@@ -111,6 +111,8 @@ function Base.get!(f, d::ZGroup, pathstr::AbstractString)
         d[pathstr]
     else
         d[pathstr] = f()
+        # Return the stored value, which may be a new `ZArray` wrapping a copy of `f()`.
+        d[pathstr]
     end
 end
 
