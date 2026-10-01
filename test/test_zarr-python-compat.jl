@@ -80,6 +80,21 @@ end
     end
 end
 
+@testset "Bool bytes are normalized like numpy" begin
+    mktempdir() do path
+        py_group = zarr.open_group(store=path, mode="w")
+        # zarr-python saves the raw bytes of a numpy bool view of every byte value.
+        py_bools = np.arange(256; dtype=np.uint8).view(np.bool_)
+        py_array = py_group.create_dataset("a"; data=py_bools, chunks=(100,), compressor=numcodecs.Zstd())
+        # numpy treats any nonzero byte as true, and converts it to 0x01.
+        expected = Vector(PyArray(py_array.get_basic_selection().astype(np.uint8)))
+        @test expected == [0x00; fill(0x01, 255)]
+        z = SmallZarrGroups.load_dir(path)["a"]
+        @test eltype(z) === Bool
+        @test reinterpret(UInt8, parent(z)) == expected
+    end
+end
+
 @testset "unsupported zarr-python arrays error" begin
     cases = [
         (; filters=pylist([numcodecs.Delta(dtype="<f8")]), compressor=nothing) => "delta filter not supported",
