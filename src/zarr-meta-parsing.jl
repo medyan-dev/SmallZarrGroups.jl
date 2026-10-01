@@ -67,12 +67,13 @@ function parse_zarr_fill_value(::Type{T}, fill_value::String)::T where {T}
         sizeof(T) == 0 ? reinterpret(T, ()) : only(reinterpret(T, bytes))
     end
 end
-function parse_zarr_fill_value(::Type{T}, fill_value::Union{Nothing, Real})::T where {T}
-    if isnothing(fill_value) || iszero(fill_value)
-        zero_fill(T)
-    else
-        convert(T, fill_value)
-    end
+parse_zarr_fill_value(::Type{T}, ::Nothing) where {T} = zero_fill(T)
+# `convert` keeps the sign of a `-0.0` fill value.
+parse_zarr_fill_value(::Type{T}, fill_value::Real) where {T<:Number} = convert(T, fill_value)::T
+# A numeric fill value of a non number type must be zero.
+function parse_zarr_fill_value(::Type{T}, fill_value::Real)::T where {T}
+    @argcheck iszero(fill_value)
+    zero_fill(T)
 end
 # zarr-python writes complex fill values as a list of the real and imaginary parts.
 function parse_zarr_fill_value(::Type{Complex{T}}, fill_value::AbstractVector)::Complex{T} where {T}

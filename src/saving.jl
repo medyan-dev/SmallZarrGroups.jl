@@ -59,7 +59,7 @@ function _save_attrs(writer::AbstractWriter, key_prefix::String, z::Union{ZArray
     if isempty(attrs(z))
         return
     end
-    write_key(writer, key_prefix*".zattrs", codeunits(JSON.json(attrs(z); allownan=true)))
+    write_key(writer, key_prefix*".zattrs", codeunits(JSON.json(attrs(z))))
     return
 end
 

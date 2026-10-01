@@ -16,10 +16,40 @@ using Test
         gload = SmallZarrGroups.load_dir(path)
         @test length(keys(attrs(gload))) == length(keys(attrs(g)))
         @test attrs(gload)["foo"] == "bar"
-        # All numbers are loaded as `Float64`.
-        @test attrs(gload)["2"] === 123.0
+        @test attrs(gload)["2"] === 123
         @test attrs(gload)["weird-number"] === 1.5
         @test attrs(gload)["list"] == [1,2,3,4]
+    end
+end
+
+
+@testset "integer attrs load exactly" begin
+    g = ZGroup()
+    attrs(g)["big"] = 2^53 + 1
+    attrs(g)["max"] = typemax(Int64)
+    attrs(g)["min"] = typemin(Int64)
+    attrs(g)["list"] = Any[1, 2.5]
+    gload = SmallZarrGroups.load_zip(SmallZarrGroups.save_zip(Vector{UInt8}, g))
+    @test attrs(gload)["big"] === 2^53 + 1
+    @test attrs(gload)["max"] === typemax(Int64)
+    @test attrs(gload)["min"] === typemin(Int64)
+    @test attrs(gload)["list"] == [1, 2.5]
+    @test attrs(gload)["list"][1] === 1
+end
+
+
+@testset "NaN and Inf attrs are not valid JSON" begin
+    for x in (NaN, Inf, -Inf)
+        g = ZGroup()
+        attrs(g)["x"] = [1.0, x]
+        @test_throws ArgumentError SmallZarrGroups.save_zip(Vector{UInt8}, g)
+    end
+    for x in ("NaN", "Infinity", "-Infinity")
+        mktempdir() do path
+            write(joinpath(path, ".zgroup"), """{"zarr_format": 2}""")
+            write(joinpath(path, ".zattrs"), """{"x": [1.0, $(x)]}""")
+            @test_throws ArgumentError SmallZarrGroups.load_dir(path)
+        end
     end
 end
 

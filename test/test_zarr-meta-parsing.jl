@@ -52,6 +52,14 @@ end
         (UInt16, "BBB=") => 0x1004,
         (NTuple{2,UInt8}, "BBB=") => (0x04, 0x10),
         (Float16, 0) => Float16(0.0),
+        (Float64, -0.0) => -0.0,
+        (Float32, -0.0) => -0.0f0,
+        (Float16, -0.0) => -Float16(0.0),
+        (Float64, 0.0) => 0.0,
+        (Int8, -0.0) => Int8(0),
+        (Bool, -0.0) => false,
+        (NTuple{2,UInt8}, -0.0) => (0x00, 0x00),
+        (ComplexF64, Any[-0.0, -0.0]) => ComplexF64(-0.0, -0.0),
         (UInt16, 1) => 0x0001,
         (Float16, 1.0) => Float16(1.0),
         (Bool, true) => true,
@@ -67,6 +75,7 @@ end
         @test parse_zarr_fill_value(T, fill_value) === expected
     end
     @test_throws ArgumentError parse_zarr_fill_value(UInt16, "AA==")
+    @test_throws ArgumentError parse_zarr_fill_value(NTuple{2,UInt8}, 1)
     @test_throws ArgumentError parse_zarr_fill_value(Float64, [1.0, 2.0])
     @test_throws ArgumentError parse_zarr_fill_value(ComplexF64, [1.0])
     @test_throws ArgumentError parse_zarr_fill_value(ComplexF64, [1.0, 2.0, 3.0])

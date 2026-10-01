@@ -31,8 +31,7 @@ end
 function try_add_attrs!(@nospecialize(zthing::Union{ZGroup, ZArray}), reader::AbstractReader, keyname_dict,  key_prefix)
     attrsidx = get(Returns(0), keyname_dict, key_prefix*".zattrs")
     if attrsidx > 0
-        # With `allownan=true`, JSON.jl parses all untyped numbers as `Float64`.
-        zthing.attrs = JSON.parse(read_key_idx(reader, attrsidx), OrderedDict{String,Any}; allownan=true)
+        zthing.attrs = JSON.parse(read_key_idx(reader, attrsidx), OrderedDict{String,Any})
     end
 end
 
